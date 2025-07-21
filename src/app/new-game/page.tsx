@@ -55,7 +55,7 @@ export default function NewGamePage() {
     setShowPasswordModal(true);
   };
 
-  const handleSubmit = async () => {
+  const handlePasswordConfirm = async () => {
     setLoading(true);
     setError(null);
     try {
@@ -234,7 +234,7 @@ export default function NewGamePage() {
           setShowPasswordModal(false);
           setLoading(false);
         }}
-        onConfirm={handleSubmit}
+        onConfirm={handlePasswordConfirm}
         message="새 경기를 생성하려면 비밀번호를 입력하세요."
       />
 
