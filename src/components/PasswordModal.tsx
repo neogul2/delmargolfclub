@@ -11,7 +11,9 @@ export default function PasswordModal({ isOpen, onClose, onConfirm, message }: P
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const password = (e.currentTarget.elements.namedItem('password') as HTMLInputElement).value;
-    if (password === '92130') {
+    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || '92130';
+    
+    if (password === adminPassword) {
       onConfirm();
       onClose();
     } else {

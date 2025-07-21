@@ -1,13 +1,9 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
-interface NavBarProps {
-  gameId?: string;
-}
-
-export default function NavBar({ gameId }: NavBarProps) {
+export default function NavBar() {
   const pathname = usePathname();
 
   return (
@@ -18,14 +14,12 @@ export default function NavBar({ gameId }: NavBarProps) {
       >
         🏠 리더보드
       </Link>
-      {gameId && (
-        <Link 
-          href={`/game/${gameId}`} 
-          className={`nav-link ${pathname.startsWith('/game/') ? 'active' : ''}`}
-        >
-          ✏️ 점수입력
-        </Link>
-      )}
+      <Link 
+        href="/game/new" 
+        className={`nav-link ${pathname === '/game/new' ? 'active' : ''}`}
+      >
+        ✏️ 점수입력
+      </Link>
       <Link 
         href="/new-game" 
         className={`nav-link ${pathname === '/new-game' ? 'active' : ''}`}
@@ -42,7 +36,13 @@ export default function NavBar({ gameId }: NavBarProps) {
         href="/gallery" 
         className={`nav-link ${pathname === '/gallery' ? 'active' : ''}`}
       >
-        📸 갤러리
+        📷 갤러리
+      </Link>
+      <Link 
+        href="/admin" 
+        className={`nav-link ${pathname === '/admin' ? 'active' : ''}`}
+      >
+        🔧 관리
       </Link>
     </nav>
   );
