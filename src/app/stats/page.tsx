@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
 import * as XLSX from 'xlsx';
@@ -40,11 +40,7 @@ export default function StatsPage() {
   const [loading, setLoading] = useState(false);
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     setLoading(true);
     try {
       const { data: gamesData, error: gamesError } = await supabase
@@ -86,68 +82,86 @@ export default function StatsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   const calculatePlayerStats = (games: GameData[]): PlayerStats[] => {
-    const playerScores: { [key: string]: { totalScore: number; gamesPlayed: number } } = {};
+    const playerMap: { [key: string]: { name: string; totalScore: number; gamesPlayed: number; gameScores: { gameName: string; totalScore: number; }[] } } = {};
 
     games.forEach(game => {
       game.teams.forEach(team => {
-        team.team_players.forEach(player => {
-          const playerId = player.player.id;
-          if (!playerScores[playerId]) {
-            playerScores[playerId] = { totalScore: 0, gamesPlayed: 0 };
+        team.team_players.forEach(teamPlayer => {
+          const playerId = teamPlayer.player.id;
+          const playerName = teamPlayer.player.name;
+          const gameScore = teamPlayer.scores.reduce((sum, score) => sum + score.score, 0);
+
+          if (!playerMap[playerId]) {
+            playerMap[playerId] = {
+              name: playerName,
+              totalScore: 0,
+              gamesPlayed: 0,
+              gameScores: []
+            };
           }
-          playerScores[playerId].gamesPlayed++;
-          playerScores[playerId].totalScore += player.scores.reduce((sum, score) => sum + score.score, 0);
+
+          playerMap[playerId].totalScore += gameScore;
+          playerMap[playerId].gamesPlayed++;
+          playerMap[playerId].gameScores.push({
+            gameName: game.name,
+            totalScore: gameScore
+          });
         });
       });
     });
 
-    return Object.entries(playerScores).map(([id, stats]) => ({
-      player: { id, name: playerScores[id].name || 'Unknown Player' }, // Assuming name is available in playerScores
-      averageScore: stats.totalScore / stats.gamesPlayed,
-      totalGames: stats.gamesPlayed,
-      gameScores: games.map(game => ({
-        gameName: game.name,
-        totalScore: game.teams.reduce((sum, team) => sum + team.team_players.reduce((teamSum, player) => teamSum + player.scores.reduce((playerSum, score) => playerSum + score.score, 0), 0), 0)
-      }))
+    return Object.entries(playerMap).map(([id, data]) => ({
+      player: { id, name: data.name },
+      averageScore: Math.round((data.totalScore / data.gamesPlayed) * 10) / 10,
+      totalGames: data.gamesPlayed,
+      gameScores: data.gameScores
     }));
   };
 
   const downloadExcel = () => {
-    // 엑셀 데이터 준비
-    const excelData = playerStats.map(player => {
-      const row: any = {
-        '플레이어': player.player.name,
-        '평균 스코어': player.averageScore,
-        '참여 경기 수': player.totalGames
-      };
+    try {
+      // 엑셀 데이터 준비
+      const excelData = playerStats.map(player => {
+        const row: { [key: string]: string | number } = {
+          '플레이어': player.player.name,
+          '평균 스코어': player.averageScore,
+          '참여 경기 수': player.totalGames
+        };
 
-      // 각 게임의 점수를 열로 추가
-      player.gameScores.forEach(game => {
-        const gameTitle = `${game.gameName} (${new Date(game.gameDate).toLocaleDateString()})`;
-        row[gameTitle] = game.totalScore;
+        // 각 게임의 점수를 열로 추가
+        player.gameScores.forEach(game => {
+          row[game.gameName] = game.totalScore;
+        });
+
+        return row;
       });
 
-      return row;
-    });
+      // 워크시트 생성
+      const ws = XLSX.utils.json_to_sheet(excelData);
 
-    // 워크시트 생성
-    const ws = XLSX.utils.json_to_sheet(excelData);
+      // 열 너비 자동 조정
+      const colWidths = Object.keys(excelData[0] || {}).map(key => ({
+        wch: Math.max(key.length, ...excelData.map(row => String(row[key]).length))
+      }));
+      ws['!cols'] = colWidths;
 
-    // 열 너비 자동 조정
-    const colWidths = Object.keys(excelData[0] || {}).map(key => ({
-      wch: Math.max(key.length, ...excelData.map(row => String(row[key]).length))
-    }));
-    ws['!cols'] = colWidths;
+      // 워크북 생성
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "전체 기록");
 
-    // 워크북 생성
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "전체 기록");
-
-    // 파일 다운로드
-    XLSX.writeFile(wb, "골프_전체기록.xlsx");
+      // 파일 다운로드
+      XLSX.writeFile(wb, "골프_전체기록.xlsx");
+    } catch (error) {
+      console.error('Excel download error:', error);
+      alert('엑셀 다운로드 중 오류가 발생했습니다.');
+    }
   };
 
   if (loading) return <div className="container">로딩 중...</div>;
