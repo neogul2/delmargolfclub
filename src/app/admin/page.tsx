@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
 import PasswordModal from '@/components/PasswordModal';
+import { useRouter } from 'next/navigation';
 
 interface Game {
   id: string;
@@ -13,6 +14,7 @@ interface Game {
 }
 
 export default function AdminPage() {
+  const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(true);
   const [games, setGames] = useState<Game[]>([]);
@@ -123,7 +125,7 @@ export default function AdminPage() {
       <div className="container page-container">
         <PasswordModal
           isOpen={showPasswordModal}
-          onClose={() => window.history.back()}
+          onClose={() => router.push('/')}
           onConfirm={handlePasswordConfirm}
           message="관리자 권한이 필요합니다. 비밀번호를 입력하세요."
         />
