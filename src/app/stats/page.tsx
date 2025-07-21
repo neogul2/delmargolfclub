@@ -6,16 +6,15 @@ import NavBar from '@/components/NavBar';
 import * as XLSX from 'xlsx';
 
 interface PlayerStats {
-  playerId: string;
-  playerName: string;
+  player: {
+    id: string;
+    name: string;
+  };
   averageScore: number;
   totalGames: number;
   gameScores: {
-    gameId: string;
     gameName: string;
-    gameDate: string;
     totalScore: number;
-    completedHoles: number;
   }[];
 }
 

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import NavBar from "@/components/NavBar";
 import PasswordModal from "@/components/PasswordModal";
+import Link from 'next/link';
 
 interface PlayerInput {
   name: string;
@@ -38,8 +39,25 @@ export default function NewGamePage() {
     setShowPasswordModal(true);
   };
 
-  const handleSubmit = async () => {
-    if (!pendingSubmit) return;
+  const validatePlayers = () => {
+    let hasError = false;
+    for (let i = 0; i < teamCount; i++) {
+      for (let j = 0; j < 4; j++) {
+        if (!players[i][j].name.trim()) {
+          setError(`팀 ${i + 1}의 플레이어 ${j + 1} 이름을 입력해주세요.`);
+          hasError = true;
+          break;
+        }
+      }
+      if (hasError) break;
+    }
+    return hasError;
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const playerError = validatePlayers();
+    if (playerError) return;
     
     setLoading(true);
     setError(null);
@@ -123,9 +141,9 @@ export default function NewGamePage() {
           <h2>🎉 경기 생성 완료!</h2>
           <p>새로운 경기가 성공적으로 생성되었습니다.</p>
           <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-            <a href="/" className="btn">
-              리더보드로 이동
-            </a>
+            <Link href="/" className="btn btn-secondary">
+              취소
+            </Link>
             <button 
               className="btn btn-outline"
               onClick={() => {

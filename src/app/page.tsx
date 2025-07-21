@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import NavBar from "@/components/NavBar";
+import Image from 'next/image';
 
 interface Player {
   id: string;
@@ -72,7 +73,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [gamePhotos, setGamePhotos] = useState<{ [key: string]: GamePhoto[] }>({});
 
@@ -111,7 +111,6 @@ export default function Home() {
       return;
     }
 
-    setSelectedFile(file);
     handleUpload(file);
   };
 
@@ -147,7 +146,6 @@ export default function Home() {
       // 사진 목록 새로고침
       fetchGamePhotos(selectedGame);
       alert('사진이 업로드되었습니다.');
-      setSelectedFile(null);
     } catch (err: any) {
       console.error('Error uploading photo:', err);
       alert('사진 업로드에 실패했습니다.');
@@ -250,10 +248,15 @@ export default function Home() {
     );
   };
 
+  const handleError = (error: Error) => {
+    console.error('Error:', error.message);
+    alert('오류가 발생했습니다. 다시 시도해주세요.');
+  };
+
   return (
     <div className="container page-container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 style={{ margin: 0 }}>⛳️ Delmar Men's Golf Club</h1>
+        <h1 style={{ margin: 0 }}>⛳️ Delmar Men&apos;s Golf Club</h1>
       </div>
 
       {error && (
@@ -310,7 +313,13 @@ export default function Home() {
             <div className="game-photos">
               {gamePhotos[selectedGame].map((photo: GamePhoto) => (
                 <div key={photo.id} className="game-photo">
-                  <img src={photo.photo_url} alt="경기 사진" />
+                  <Image
+                    src={photo.photo_url}
+                    alt={`${selectedGame?.name} 경기 사진`}
+                    width={200}
+                    height={150}
+                    className="rounded shadow"
+                  />
                 </div>
               ))}
             </div>

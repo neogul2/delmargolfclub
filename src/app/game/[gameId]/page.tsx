@@ -98,9 +98,14 @@ export default function GamePage() {
     }
   };
 
+  const handleError = (error: Error) => {
+    console.error('Error:', error.message);
+    alert('오류가 발생했습니다. 다시 시도해주세요.');
+  };
+
   useEffect(() => {
     fetchGameData();
-  }, [gameId]);
+  }, [gameId, fetchGameData]);
 
   const isHoleComplete = (holeNumber: number): boolean => {
     if (!game) return false;

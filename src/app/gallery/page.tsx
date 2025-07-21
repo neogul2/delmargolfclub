@@ -53,7 +53,7 @@ export default function Gallery() {
     fetchPhotos();
   }, []);
 
-  const handleImageClick = async (photo: GamePhoto) => {
+  const handleImageClick = async (e: React.MouseEvent<HTMLImageElement>, photo: GamePhoto) => {
     if (confirm('이미지를 다운로드하시겠습니까?')) {
       try {
         // 이미지 URL에서 파일 이름 추출
@@ -112,7 +112,7 @@ export default function Gallery() {
                 src={photo.photo_url} 
                 alt={`${photo.game.name} 경기 사진`} 
                 className="gallery-image"
-                onClick={() => handleImageClick(photo)}
+                onClick={(e) => handleImageClick(e, photo)}
                 style={{ cursor: 'pointer' }}
               />
               <div className="gallery-info">
