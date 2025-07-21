@@ -1,8 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import NavBar from "@/components/NavBar";
-import Image from 'next/image';
 
 interface Player {
   id: string;
@@ -218,9 +217,8 @@ export default function Home() {
           setGames(gamesWithScores);
           if (gamesWithScores.length > 0) setSelectedGame(gamesWithScores[0].id);
         }
-      } catch (err: any) {
-        console.error('Error fetching games:', err);
-        setError(err.message);
+      } catch (error) {
+        handleError(error instanceof Error ? error : { message: 'Unknown error' });
       } finally {
         setLoading(false);
       }

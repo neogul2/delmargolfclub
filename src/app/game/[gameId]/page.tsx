@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
@@ -42,14 +42,12 @@ export default function GamePage() {
   const [saving, setSaving] = useState(false);
   const [pendingScores, setPendingScores] = useState<{[key: string]: number}>({});
 
-  const fetchGameData = async () => {
+  const fetchGameData = useCallback(async () => {
     try {
       const { data: gameData, error: gameError } = await supabase
         .from('games')
         .select(`
-          id,
-          name,
-          date,
+          *,
           teams (
             id,
             name,
@@ -70,33 +68,14 @@ export default function GamePage() {
         .single();
 
       if (gameError) throw gameError;
-      if (gameData) {
-        const formattedGame: Game = {
-          id: gameData.id,
-          name: gameData.name,
-          date: gameData.date,
-          teams: gameData.teams.map(team => ({
-            id: team.id,
-            name: team.name,
-            team_players: team.team_players.map(tp => ({
-              id: tp.id,
-              player: {
-                id: tp.player.id,
-                name: tp.player.name
-              },
-              scores: tp.scores || []
-            }))
-          }))
-        };
-        setGame(formattedGame);
-      }
-    } catch (err: any) {
-      console.error('Error fetching game:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      if (!gameData) throw new Error('Game not found');
+
+      setGame(gameData);
+      // setTeams(gameData.teams); // This line was removed from the new_code, so it's removed here.
+    } catch (error) {
+      handleError(error instanceof Error ? error : new Error('Unknown error'));
     }
-  };
+  }, [gameId]);
 
   const handleError = (error: Error) => {
     console.error('Error:', error.message);

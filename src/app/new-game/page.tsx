@@ -56,11 +56,10 @@ export default function NewGamePage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const playerError = validatePlayers();
-    if (playerError) return;
+    const hasError = validatePlayers();
+    if (hasError) return;
     
     setLoading(true);
-    setError(null);
     try {
       // 1. 경기 생성
       const { data: game, error: gameError } = await supabase
@@ -115,13 +114,16 @@ export default function NewGamePage() {
         }
       }
       setSuccess(true);
-    } catch (err: any) {
-      console.error('Error creating game:', err);
-      setError(err.message);
+    } catch (error) {
+      handleError(error instanceof Error ? error : new Error('Unknown error'));
     } finally {
       setLoading(false);
-      setPendingSubmit(false);
     }
+  };
+
+  const handleError = (error: Error) => {
+    console.error('Error:', error.message);
+    setError(error.message);
   };
 
   return (

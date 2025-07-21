@@ -5,6 +5,31 @@ import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
 import * as XLSX from 'xlsx';
 
+interface Score {
+  hole_number: number;
+  score: number;
+}
+
+interface TeamPlayer {
+  id: string;
+  player: {
+    id: string;
+    name: string;
+  };
+  scores: Score[];
+}
+
+interface Game {
+  id: string;
+  name: string;
+  date: string;
+  teams: {
+    id: string;
+    name: string;
+    team_players: TeamPlayer[];
+  }[];
+}
+
 interface PlayerStats {
   player: {
     id: string;

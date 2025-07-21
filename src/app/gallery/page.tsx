@@ -72,11 +72,20 @@ export default function Gallery() {
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(downloadUrl);
-      } catch (err) {
-        console.error('Error downloading image:', err);
-        alert('이미지 다운로드 중 오류가 발생했습니다.');
+      } catch (error) {
+        handleDownloadError(error instanceof Error ? error : new Error('Unknown error'));
       }
     }
+  };
+
+  const handleError = (error: Error) => {
+    console.error('Error:', error.message);
+    alert('오류가 발생했습니다. 다시 시도해주세요.');
+  };
+
+  const handleDownloadError = (error: Error) => {
+    console.error('Download error:', error.message);
+    alert('이미지 다운로드 중 오류가 발생했습니다.');
   };
 
   return (
