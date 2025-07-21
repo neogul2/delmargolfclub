@@ -21,17 +21,17 @@ interface Game {
   date: string;
 }
 
-interface Team {
-  id: string;
-  name: string;
-  game: Game;
-}
-
-interface TeamPlayer {
-  id: string;
+interface SupabaseResponse {
   player: Player;
-  team: Team;
-  scores: Score[];
+  team: {
+    id: string;
+    name: string;
+    game: Game;
+  };
+  scores: Array<{
+    score: number | null;
+    hole_number: number;
+  }>;
 }
 
 interface PlayerStats {
@@ -75,13 +75,13 @@ export default function StatsPage() {
 
       const playerStatsMap = new Map<string, PlayerStats>();
 
-      playersData?.forEach((tp: any) => {
+      (playersData as unknown as SupabaseResponse[])?.forEach((tp) => {
         const player = tp.player;
         const game = tp.team.game;
         if (!player || !game) return;
 
-        const totalScore = tp.scores.reduce((sum: number, s: Score) => sum + (s.score || 0), 0);
-        const completedHoles = tp.scores.filter((s: Score) => s.score !== null).length;
+        const totalScore = tp.scores.reduce((sum: number, s) => sum + (s.score || 0), 0);
+        const completedHoles = tp.scores.filter((s) => s.score !== null).length;
         
         // 18홀이 완료된 게임만 포함
         if (completedHoles !== 18) return;
@@ -122,9 +122,9 @@ export default function StatsPage() {
   const downloadExcel = () => {
     // 데이터 준비
     const data = stats.map(player => {
-      const row: any = {
+      const row: Record<string, string | number> = {
         '선수': player.name,
-        '평균': player.average.toFixed(1),
+        '평균': Number(player.average.toFixed(1)),
         '경기수': player.gamesPlayed,
       };
 
