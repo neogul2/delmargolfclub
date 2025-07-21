@@ -48,10 +48,6 @@ interface GamePhoto {
   created_at: string;
 }
 
-interface SupabaseError {
-  message: string;
-}
-
 interface GameData {
   id: string;
   name: string;
@@ -105,54 +101,64 @@ export default function Home() {
     }
   }, [selectedGame]);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !selectedGame) return;
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    const currentPhotos = gamePhotos[selectedGame] || [];
-    if (currentPhotos.length >= 2) {
-      alert('한 게임당 최대 2장의 사진만 업로드할 수 있습니다.');
+    if (!selectedGame) {
+      alert('경기를 선택해주세요.');
       return;
     }
 
-    handleUpload(file);
-  };
+    // Check if there are already 2 photos for this game
+    if (gamePhotos[selectedGame]?.length >= 2) {
+      alert('한 경기당 최대 2장의 사진만 업로드할 수 있습니다.');
+      return;
+    }
 
-  const handleUpload = async (file: File) => {
-    if (!selectedGame) return;
-    
     setUploadLoading(true);
     try {
-      // 파일 업로드
+      const { data: existingPhotos } = await supabase
+        .from('game_photos')
+        .select('id')
+        .eq('game_id', selectedGame);
+
+      if (existingPhotos && existingPhotos.length >= 2) {
+        alert('한 경기당 최대 2장의 사진만 업로드할 수 있습니다.');
+        return;
+      }
+
       const fileExt = file.name.split('.').pop();
-      const fileName = `${selectedGame}-${Date.now()}.${fileExt}`;
+      const fileName = `${selectedGame}_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
       const { error: uploadError } = await supabase.storage
         .from('game-photos')
-        .upload(fileName, file);
+        .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      // 파일의 공개 URL 가져오기
       const { data: { publicUrl } } = supabase.storage
         .from('game-photos')
-        .getPublicUrl(fileName);
+        .getPublicUrl(filePath);
 
-      // DB에 사진 정보 저장
       const { error: dbError } = await supabase
         .from('game_photos')
-        .insert([{
-          game_id: selectedGame,
-          photo_url: publicUrl
-        }]);
+        .insert([
+          {
+            game_id: selectedGame,
+            photo_url: publicUrl
+          }
+        ]);
 
       if (dbError) throw dbError;
 
-      // 사진 목록 새로고침
+      // Refresh photos
       fetchGamePhotos(selectedGame);
       alert('사진이 업로드되었습니다.');
-    } catch (err: any) {
-      console.error('Error uploading photo:', err);
-      alert('사진 업로드에 실패했습니다.');
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      alert(error instanceof Error ? error.message : '사진 업로드 중 오류가 발생했습니다.');
     } finally {
       setUploadLoading(false);
     }

@@ -123,11 +123,6 @@ export default function NewGamePage() {
     }
   };
 
-  const handleError = (error: Error) => {
-    console.error('Error:', error.message);
-    setError(error.message);
-  };
-
   return (
     <div className="container page-container">
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
