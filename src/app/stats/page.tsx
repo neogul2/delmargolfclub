@@ -18,17 +18,6 @@ interface TeamPlayer {
   scores: Score[];
 }
 
-interface Team {
-  team_players: TeamPlayer[];
-}
-
-interface Game {
-  id: string;
-  name: string;
-  date: string;
-  teams: Team[];
-}
-
 interface PlayerStats {
   player: {
     id: string;
@@ -76,8 +65,8 @@ export default function StatsPage() {
 
       if (gamesError) throw gamesError;
 
-      // Process the data and update playerStats
-      const processedStats = processGamesData(gamesData);
+      // Process the data and calculate stats
+      const processedStats = processGamesData(gamesData || []);
       setPlayerStats(processedStats);
     } catch (error) {
       console.error('Error fetching stats:', error);

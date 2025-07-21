@@ -48,6 +48,10 @@ interface GamePhoto {
   created_at: string;
 }
 
+interface SupabaseError {
+  message: string;
+}
+
 export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(false);
@@ -170,7 +174,7 @@ export default function Home() {
           setSelectedGame(gamesWithScores[0].id);
         }
       } catch (error) {
-        handleError(error instanceof Error ? error : new Error('Unknown error'));
+        console.error('Error fetching games:', error);
       } finally {
         setLoading(false);
       }
