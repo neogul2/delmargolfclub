@@ -7,52 +7,59 @@ import Image from 'next/image';
 
 interface GamePhoto {
   id: string;
+  photo_url: string;
   game: {
     id: string;
     name: string;
     date: string;
   };
-  photo_url: string;
 }
 
-export default function Gallery() {
+export default function GalleryPage() {
   const [photos, setPhotos] = useState<GamePhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchPhotos = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { data: photos, error } = await supabase
-          .from('game_photos')
-          .select(`
-            id,
-            photo_url,
-            game:games (
-              id,
-              name,
-              date
-            )
-          `)
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          handleError(error);
-          return;
-        }
-
-        setPhotos(photos || []);
-      } catch (error) {
-        handleError(error instanceof Error ? error : new Error('Unknown error'));
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchPhotos();
   }, []);
+
+  const fetchPhotos = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: photosData, error } = await supabase
+        .from('game_photos')
+        .select(`
+          id,
+          photo_url,
+          game:games!game_photos_game_id_fkey (
+            id,
+            name,
+            date
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        handleError(error);
+        return;
+      }
+
+      // Type assertion with proper data transformation
+      const transformedPhotos = (photosData || []).map(photo => ({
+        id: photo.id,
+        photo_url: photo.photo_url,
+        game: Array.isArray(photo.game) ? photo.game[0] : photo.game
+      })) as GamePhoto[];
+
+      setPhotos(transformedPhotos);
+    } catch (error) {
+      handleError(error instanceof Error ? error : new Error('Unknown error'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleImageClick = async (e: React.MouseEvent<HTMLImageElement>, photo: GamePhoto) => {
     if (confirm('이미지를 다운로드하시겠습니까?')) {
