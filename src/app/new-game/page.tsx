@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import NavBar from "@/components/NavBar";
@@ -18,7 +19,6 @@ export default function NewGamePage() {
   const [teamCount, setTeamCount] = useState(1);
   const [players, setPlayers] = useState<PlayerInput[][]>([Array(4).fill({ name: '' })]);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [pendingSubmit, setPendingSubmit] = useState(false);
 
   const handleTeamCountChange = (count: number) => {
     setTeamCount(count);
@@ -33,26 +33,29 @@ export default function NewGamePage() {
     });
   };
 
-  const handleSubmitClick = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // 플레이어 이름 검증
+  const validatePlayers = () => {
+    let hasError = false;
     for (let i = 0; i < teamCount; i++) {
       for (let j = 0; j < 4; j++) {
         if (!players[i][j].name.trim()) {
           setError(`팀 ${i + 1}의 플레이어 ${j + 1} 이름을 입력해주세요.`);
-          return;
+          hasError = true;
+          break;
         }
       }
+      if (hasError) break;
     }
-    
-    setPendingSubmit(true);
+    return hasError;
+  };
+
+  const handleSubmitClick = (e: React.FormEvent) => {
+    e.preventDefault();
+    const hasError = validatePlayers();
+    if (hasError) return;
     setShowPasswordModal(true);
   };
 
   const handleSubmit = async () => {
-    if (!pendingSubmit) return;
-    
     setLoading(true);
     setError(null);
     try {
@@ -63,10 +66,7 @@ export default function NewGamePage() {
         .select()
         .single();
 
-      if (gameError) {
-        setError(gameError.message);
-        return;
-      }
+      if (gameError) throw gameError;
 
       // 2. 팀 생성
       for (let i = 0; i < teamCount; i++) {
@@ -76,10 +76,7 @@ export default function NewGamePage() {
           .select()
           .single();
 
-        if (teamError) {
-          setError(teamError.message);
-          return;
-        }
+        if (teamError) throw teamError;
 
         // 3. 각 팀의 플레이어 생성
         for (let j = 0; j < 4; j++) {
@@ -102,10 +99,7 @@ export default function NewGamePage() {
               .select()
               .single();
 
-            if (createError) {
-              setError(createError.message);
-              return;
-            }
+            if (createError) throw createError;
             playerId = newPlayer.id;
           } else {
             playerId = existingPlayer.id;
@@ -119,20 +113,16 @@ export default function NewGamePage() {
               player_id: playerId
             }]);
 
-          if (linkError) {
-            setError(linkError.message);
-            return;
-          }
+          if (linkError) throw linkError;
         }
       }
       setSuccess(true);
       setShowPasswordModal(false);
     } catch (error) {
       console.error('Error creating game:', error);
-      setError(error instanceof Error ? error.message : 'An unknown error occurred');
+      setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
     } finally {
       setLoading(false);
-      setPendingSubmit(false);
     }
   };
 
@@ -154,7 +144,7 @@ export default function NewGamePage() {
           <p>새로운 경기가 성공적으로 생성되었습니다.</p>
           <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
             <Link href="/" className="btn btn-secondary">
-              취소
+              리더보드로 이동
             </Link>
             <button 
               className="btn btn-outline"
@@ -238,16 +228,17 @@ export default function NewGamePage() {
         </form>
       )}
 
-      <NavBar />
-
       <PasswordModal
         isOpen={showPasswordModal}
         onClose={() => {
           setShowPasswordModal(false);
+          setLoading(false);
         }}
         onConfirm={handleSubmit}
         message="새 경기를 생성하려면 비밀번호를 입력하세요."
       />
+
+      <NavBar />
     </div>
   );
 } 
