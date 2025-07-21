@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
 import PasswordModal from '@/components/PasswordModal';
-import { useRouter } from 'next/navigation';
 
 interface Game {
   id: string;
@@ -14,7 +13,6 @@ interface Game {
 }
 
 export default function AdminPage() {
-  const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(true);
   const [games, setGames] = useState<Game[]>([]);
@@ -85,7 +83,6 @@ export default function AdminPage() {
     }
 
     try {
-      // 관련 데이터들을 순서대로 삭제
       // 1. 점수 삭제
       await supabase.from('scores').delete().eq('game_id', gameId);
       
@@ -120,132 +117,133 @@ export default function AdminPage() {
     }
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="container page-container">
+  return (
+    <div className="container page-container">
+      {!isAuthenticated ? (
         <PasswordModal
           isOpen={showPasswordModal}
-          onClose={() => router.push('/')}
+          onClose={() => {
+            setShowPasswordModal(false);
+            window.location.href = '/';
+          }}
           onConfirm={handlePasswordConfirm}
           message="관리자 권한이 필요합니다. 비밀번호를 입력하세요."
         />
-      </div>
-    );
-  }
-
-  return (
-    <div className="container page-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 style={{ margin: 0 }}>🔧 경기 관리</h1>
-        <button 
-          className="btn btn-outline" 
-          onClick={() => {
-            setIsAuthenticated(false);
-            setShowPasswordModal(true);
-          }}
-        >
-          로그아웃
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="card">
-          <p>로딩 중...</p>
-        </div>
       ) : (
-        <div className="card">
-          <h2>경기 목록</h2>
-          {games.length === 0 ? (
-            <p>등록된 경기가 없습니다.</p>
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h1 style={{ margin: 0 }}>🔧 경기 관리</h1>
+            <button 
+              className="btn btn-outline" 
+              onClick={() => {
+                setIsAuthenticated(false);
+                window.location.href = '/';
+              }}
+            >
+              로그아웃
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="card">
+              <p>로딩 중...</p>
+            </div>
           ) : (
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>경기명</th>
-                    <th>날짜</th>
-                    <th>생성일</th>
-                    <th>액션</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {games.map(game => (
-                    <tr key={game.id}>
-                      <td>{game.name}</td>
-                      <td>{new Date(game.date).toLocaleDateString()}</td>
-                      <td>{new Date(game.created_at).toLocaleDateString()}</td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button 
-                            className="btn btn-small"
-                            onClick={() => handleEdit(game)}
-                          >
-                            수정
-                          </button>
-                          <button 
-                            className="btn btn-small btn-danger"
-                            onClick={() => handleDelete(game.id, game.name)}
-                          >
-                            삭제
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="card">
+              <h2>경기 목록</h2>
+              {games.length === 0 ? (
+                <p>등록된 경기가 없습니다.</p>
+              ) : (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>경기명</th>
+                        <th>날짜</th>
+                        <th>생성일</th>
+                        <th>액션</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {games.map(game => (
+                        <tr key={game.id}>
+                          <td>{game.name}</td>
+                          <td>{new Date(game.date).toLocaleDateString()}</td>
+                          <td>{new Date(game.created_at).toLocaleDateString()}</td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button 
+                                className="btn btn-small"
+                                onClick={() => handleEdit(game)}
+                              >
+                                수정
+                              </button>
+                              <button 
+                                className="btn btn-small btn-danger"
+                                onClick={() => handleDelete(game.id, game.name)}
+                              >
+                                삭제
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {editingGame && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3>경기 정보 수정</h3>
-            <div style={{ marginBottom: '1rem' }}>
-              <label>
-                <div style={{ marginBottom: '0.5rem' }}>경기명</div>
-                <input
-                  className="input"
-                  value={editForm.name}
-                  onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="경기명"
-                />
-              </label>
+          {editingGame && (
+            <div className="modal-overlay">
+              <div className="modal-content">
+                <h3>경기 정보 수정</h3>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label>
+                    <div style={{ marginBottom: '0.5rem' }}>경기명</div>
+                    <input
+                      className="input"
+                      value={editForm.name}
+                      onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="경기명"
+                    />
+                  </label>
+                </div>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label>
+                    <div style={{ marginBottom: '0.5rem' }}>날짜</div>
+                    <input
+                      className="input"
+                      type="date"
+                      value={editForm.date}
+                      onChange={e => setEditForm(prev => ({ ...prev, date: e.target.value }))}
+                    />
+                  </label>
+                </div>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button 
+                    className="btn" 
+                    onClick={handleSaveEdit}
+                    style={{ flex: 1 }}
+                  >
+                    저장
+                  </button>
+                  <button 
+                    className="btn btn-outline" 
+                    onClick={() => setEditingGame(null)}
+                    style={{ flex: 1 }}
+                  >
+                    취소
+                  </button>
+                </div>
+              </div>
             </div>
-            <div style={{ marginBottom: '1rem' }}>
-              <label>
-                <div style={{ marginBottom: '0.5rem' }}>날짜</div>
-                <input
-                  className="input"
-                  type="date"
-                  value={editForm.date}
-                  onChange={e => setEditForm(prev => ({ ...prev, date: e.target.value }))}
-                />
-              </label>
-            </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button 
-                className="btn" 
-                onClick={handleSaveEdit}
-                style={{ flex: 1 }}
-              >
-                저장
-              </button>
-              <button 
-                className="btn btn-outline" 
-                onClick={() => setEditingGame(null)}
-                style={{ flex: 1 }}
-              >
-                취소
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      <NavBar />
+          <NavBar />
+        </>
+      )}
     </div>
   );
 } 
