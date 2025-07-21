@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 interface PasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -8,16 +10,35 @@ interface PasswordModalProps {
 }
 
 export default function PasswordModal({ isOpen, onClose, onConfirm, message }: PasswordModalProps) {
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const password = (e.currentTarget.elements.namedItem('password') as HTMLInputElement).value;
-    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || '92130';
     
-    if (password === adminPassword) {
-      onConfirm();
-      onClose();
-    } else {
-      alert('비밀번호가 올바르지 않습니다.');
+    setLoading(true);
+    try {
+      const response = await fetch('/api/auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        onConfirm();
+        onClose();
+      } else {
+        alert(result.message || '비밀번호가 올바르지 않습니다.');
+      }
+    } catch (error) {
+      console.error('Password verification error:', error);
+      alert('비밀번호 확인 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -35,16 +56,18 @@ export default function PasswordModal({ isOpen, onClose, onConfirm, message }: P
             placeholder="비밀번호를 입력하세요"
             autoFocus
             required
+            disabled={loading}
           />
           <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-            <button type="submit" className="btn" style={{ flex: 1 }}>
-              확인
+            <button type="submit" className="btn" style={{ flex: 1 }} disabled={loading}>
+              {loading ? '확인 중...' : '확인'}
             </button>
             <button
               type="button"
               className="btn btn-outline"
               onClick={onClose}
               style={{ flex: 1 }}
+              disabled={loading}
             >
               취소
             </button>
