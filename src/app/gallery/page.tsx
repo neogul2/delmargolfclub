@@ -107,18 +107,14 @@ export default function Gallery() {
       ) : (
         <div className="gallery-grid">
           {photos.map((photo) => (
-            <div key={photo.id} className="gallery-item card">
-              <img 
-                src={photo.photo_url} 
-                alt={`${photo.game.name} 경기 사진`} 
+            <div key={photo.id} className="gallery-image-container">
+              <img
+                src={photo.photo_url}
+                alt={`${photo.game.name} 경기 사진`}
                 className="gallery-image"
                 onClick={(e) => handleImageClick(e, photo)}
                 style={{ cursor: 'pointer' }}
               />
-              <div className="gallery-info">
-                <h3>{photo.game.name}</h3>
-                <p>{new Date(photo.game.date).toLocaleDateString()}</p>
-              </div>
             </div>
           ))}
         </div>

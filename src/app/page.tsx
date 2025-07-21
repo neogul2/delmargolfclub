@@ -311,14 +311,13 @@ export default function Home() {
           {/* 현재 게임의 사진 표시 */}
           {selectedGame && gamePhotos[selectedGame]?.length > 0 && (
             <div className="game-photos">
-              {gamePhotos[selectedGame].map((photo: GamePhoto) => (
+              {gamePhotos[selectedGame]?.map((photo) => (
                 <div key={photo.id} className="game-photo">
-                  <Image
+                  <img
                     src={photo.photo_url}
-                    alt={`${selectedGame?.name} 경기 사진`}
-                    width={200}
-                    height={150}
+                    alt={`${selectedGame} 경기 사진`}
                     className="rounded shadow"
+                    style={{ width: '200px', height: '150px', objectFit: 'cover' }}
                   />
                 </div>
               ))}
