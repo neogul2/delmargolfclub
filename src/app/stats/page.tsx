@@ -165,7 +165,6 @@ export default function StatsPage() {
   };
 
   if (loading) return <div className="container">로딩 중...</div>;
-  if (error) return <div className="container">에러: {error}</div>;
 
   return (
     <div className="container page-container">
