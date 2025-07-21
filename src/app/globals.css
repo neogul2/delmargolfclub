@@ -750,3 +750,278 @@ input.score-input:focus {
     text-overflow: ellipsis;
   }
 }
+
+/* Score Table Styles */
+.score-container {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  margin: 0 -1rem;
+  padding: 0 1rem;
+}
+
+.score-table-wrapper {
+  display: flex;
+  position: relative;
+  width: 100%;
+}
+
+/* Fixed columns container */
+.fixed-container {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: white;
+  border-right: 2px solid #e5e7eb;
+  padding-bottom: 8px; /* Add padding to match scrollbar height */
+}
+
+/* Fixed table styles */
+.fixed-table {
+  border-collapse: collapse;
+  background: white;
+  width: auto;
+}
+
+.fixed-table th,
+.fixed-table td {
+  border: 1px solid #e5e7eb;
+  padding: 4px 8px;
+  text-align: left;
+  white-space: nowrap;
+  height: 32px;
+  line-height: 32px; /* Match height for perfect centering */
+}
+
+.fixed-table th {
+  background: #f3f4f6;
+}
+
+.fixed-table th:first-child,
+.fixed-table td:first-child {
+  min-width: 70px;
+  max-width: 90px;
+}
+
+.fixed-table th:last-child,
+.fixed-table td:last-child {
+  min-width: 50px;
+  max-width: 60px;
+  text-align: center;
+}
+
+/* Scrollable table styles */
+.scrollable-container {
+  overflow-x: auto;
+  margin-left: -2px;
+  flex: 1;
+}
+
+.scrollable-table {
+  border-collapse: collapse;
+  background: white;
+  width: max-content;
+}
+
+.scrollable-table th,
+.scrollable-table td {
+  border: 1px solid #e5e7eb;
+  padding: 0;
+  text-align: center;
+  min-width: 45px;
+  height: 32px;
+}
+
+.scrollable-table th {
+  background: #f3f4f6;
+  padding: 4px 8px;
+  line-height: 32px; /* Match height for perfect centering */
+}
+
+.scrollable-table input {
+  width: 100%;
+  height: 32px;
+  border: none;
+  text-align: center;
+  background: transparent;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 32px;
+}
+
+.scrollable-table input::-webkit-inner-spin-button,
+.scrollable-table input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.scrollable-table input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* Row hover effect */
+.fixed-table tbody tr:hover,
+.scrollable-table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+/* Custom scrollbar styles */
+.scrollable-container::-webkit-scrollbar {
+  height: 8px;
+  background: #f1f1f1;
+}
+
+.scrollable-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.scrollable-container::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 4px;
+}
+
+.scrollable-container::-webkit-scrollbar-thumb:hover {
+  background: #ccc;
+}
+
+/* Ensure text doesn't overflow in fixed columns */
+.fixed-table td:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .fixed-container {
+    padding-bottom: 6px; /* Smaller padding for mobile */
+  }
+
+  .fixed-table th,
+  .fixed-table td {
+    padding: 4px 6px;
+    height: 28px;
+    line-height: 28px;
+    font-size: 13px;
+  }
+
+  .fixed-table th:first-child,
+  .fixed-table td:first-child {
+    min-width: 60px;
+    max-width: 70px;
+  }
+
+  .fixed-table th:last-child,
+  .fixed-table td:last-child {
+    min-width: 40px;
+    max-width: 50px;
+  }
+
+  .scrollable-table th,
+  .scrollable-table td {
+    min-width: 36px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  .scrollable-table th {
+    padding: 4px 6px;
+    line-height: 28px;
+  }
+
+  .scrollable-table input {
+    height: 28px;
+    font-size: 13px;
+    line-height: 28px;
+  }
+
+  .scrollable-container::-webkit-scrollbar {
+    height: 6px;
+  }
+}
+
+/* Gallery Page Styles */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.gallery-item {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.gallery-image-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  border-radius: 0.5rem;
+}
+
+.gallery-image {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.3s ease;
+}
+
+.gallery-info {
+  padding: 1rem;
+}
+
+.gallery-info h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.gallery-info p {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.gallery-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.9rem;
+  min-height: auto;
+}
+
+.btn-danger {
+  background-color: #dc2626;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #b91c1c;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .gallery-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+  }
+
+  .gallery-image-container {
+    height: 180px;
+  }
+}
+
+.scrollable-table td {
+  height: 30px; 
+}
+
+.scrollable-table input {
+  height: 40px;
+  line-height: 40px;
+}

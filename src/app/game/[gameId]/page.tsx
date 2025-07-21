@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
 import Link from 'next/link';
@@ -12,6 +13,7 @@ interface Player {
 
 interface Score {
   score: number;
+  hole: number;
 }
 
 interface TeamPlayer {
@@ -32,77 +34,98 @@ interface Game {
   teams: Team[];
 }
 
-interface RawSupabaseResponse {
-  id: string;
-  name: string;
-  date: string;
-  teams: {
+interface RawTeamPlayerResponse {
+  player: {
     id: string;
     name: string;
-    team_players: {
-      player: {
-        id: string;
-        name: string;
-      };
-      scores: {
-        score: number;
-      }[];
-    }[];
+  };
+  scores: {
+    score: number;
+    hole: number;
   }[];
 }
 
-export default function GamePage({ params }: { params: { gameId: string } }) {
-  const [game, setGame] = useState<Game | null>(null);
+interface TeamPlayerWithId extends TeamPlayer {
+  id: string;
+}
+
+interface TeamWithFullData extends Team {
+  team_players: TeamPlayerWithId[];
+}
+
+interface GameWithFullData extends Game {
+  teams: TeamWithFullData[];
+}
+
+export default function GamePage() {
+  const params = useParams();
+  const gameId = params?.gameId as string;
+  
+  const [game, setGame] = useState<GameWithFullData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [scores, setScores] = useState<number[][]>([]);
 
   const fetchGameData = useCallback(async () => {
+    if (!gameId) {
+      setError('게임 ID가 없습니다.');
+      return;
+    }
+
     try {
-      const { data, error: gameError } = await supabase
+      console.log('Fetching game data for ID:', gameId);
+
+      const { data: gameData, error: gameError } = await supabase
         .from('games')
         .select(`
-          id,
-          name,
-          date,
+          *,
           teams (
             id,
             name,
             team_players (
-              player (
+              id,
+              player:players (
                 id,
                 name
               ),
               scores (
+                hole_number,
                 score
               )
             )
           )
         `)
-        .eq('id', params.gameId)
+        .eq('id', gameId)
         .single();
 
-      if (gameError) throw gameError;
-      if (!data) throw new Error('No data returned from Supabase');
-
-      // First cast to unknown, then to our known raw response type
-      const rawData = data as unknown as RawSupabaseResponse;
+      if (gameError) {
+        console.error('Game fetch error:', gameError);
+        throw gameError;
+      }
       
+      if (!gameData) {
+        console.error('No game data found for ID:', gameId);
+        throw new Error('게임을 찾을 수 없습니다.');
+      }
+
+      console.log('Game data:', gameData);
+
       // Transform the data to match our Game interface
-      const transformedGame: Game = {
-        id: rawData.id,
-        name: rawData.name,
-        date: rawData.date,
-        teams: rawData.teams.map(team => ({
+      const transformedGame: GameWithFullData = {
+        id: gameData.id,
+        name: gameData.name,
+        date: gameData.date,
+        teams: gameData.teams.map(team => ({
           id: team.id,
           name: team.name,
           team_players: team.team_players.map(tp => ({
-            player: {
-              id: tp.player.id,
-              name: tp.player.name
-            },
-            scores: tp.scores
+            id: tp.id, // Keep the team_player id
+            player: tp.player,
+            scores: tp.scores.map(s => ({
+              score: s.score,
+              hole: s.hole_number
+            }))
           }))
         }))
       };
@@ -116,7 +139,13 @@ export default function GamePage({ params }: { params: { gameId: string } }) {
       transformedGame.teams.forEach(team => {
         team.team_players.forEach(tp => {
           allPlayers.push(tp.player);
-          allScores.push(tp.scores.map(s => s.score));
+          const playerScores = Array(18).fill(null);
+          tp.scores.forEach(s => {
+            if (s.hole >= 1 && s.hole <= 18) {
+              playerScores[s.hole - 1] = s.score;
+            }
+          });
+          allScores.push(playerScores);
         });
       });
 
@@ -126,14 +155,17 @@ export default function GamePage({ params }: { params: { gameId: string } }) {
       console.error('Error fetching game:', error);
       setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
     }
-  }, [params.gameId]);
+  }, [gameId]);
 
   useEffect(() => {
-    fetchGameData();
-  }, [fetchGameData]);
+    if (gameId) {
+      fetchGameData();
+    }
+  }, [fetchGameData, gameId]);
 
   const handleScoreChange = (playerIndex: number, holeIndex: number, value: string) => {
-    const newValue = value === '' ? null : Math.max(-4, Math.min(12, parseInt(value) || 0));
+    const parsedValue = value === '' ? null : parseInt(value);
+    const newValue = parsedValue === null ? null : Math.max(-4, Math.min(12, parsedValue));
     
     setScores(prevScores => {
       const newScores = [...prevScores];
@@ -147,48 +179,56 @@ export default function GamePage({ params }: { params: { gameId: string } }) {
   };
 
   const handleSave = async () => {
+    if (!game) return;
+    
     setLoading(true);
     setError(null);
 
     try {
-      if (!game) return;
-
-      // Delete existing scores
-      const { error: deleteError } = await supabase
-        .from('scores')
-        .delete()
-        .in('team_player_id', 
-          game.teams.flatMap(team => 
-            team.team_players.map(tp => tp.player.id)
-          )
-        );
-
-      if (deleteError) throw deleteError;
-
-      // Insert new scores
+      console.log('Saving scores...');
       let playerIndex = 0;
+      
       for (const team of game.teams) {
         for (const tp of team.team_players) {
+          console.log(`Processing player ${tp.player.name} with team_player_id ${tp.id}`);
           const playerScores = scores[playerIndex] || [];
-          
+
+          // Delete existing scores for this team_player
+          const { error: deleteError } = await supabase
+            .from('scores')
+            .delete()
+            .eq('team_player_id', tp.id);
+
+          if (deleteError) {
+            console.error('Error deleting scores:', deleteError);
+            throw deleteError;
+          }
+
+          // Insert new scores
           for (let hole = 0; hole < 18; hole++) {
             const score = playerScores[hole];
-            if (score !== null && score !== undefined) {
+            // Changed condition to explicitly check for null
+            if (score !== null) {
+              console.log(`Saving score ${score} for hole ${hole + 1}`);
               const { error: insertError } = await supabase
                 .from('scores')
                 .insert({
-                  team_player_id: tp.player.id,
-                  hole: hole + 1,
+                  team_player_id: tp.id,
+                  hole_number: hole + 1,
                   score: score
                 });
 
-              if (insertError) throw insertError;
+              if (insertError) {
+                console.error('Error inserting score:', insertError);
+                throw insertError;
+              }
             }
           }
           playerIndex++;
         }
       }
 
+      console.log('Scores saved successfully');
       await fetchGameData();
     } catch (error) {
       console.error('Error saving scores:', error);
@@ -209,39 +249,63 @@ export default function GamePage({ params }: { params: { gameId: string } }) {
       </div>
 
       <div className="score-container">
-        <table className="score-table">
-          <thead>
-            <tr>
-              <th className="sticky-column">선수</th>
-              {Array.from({ length: 18 }, (_, i) => (
-                <th key={i}>{i + 1}번홀</th>
-              ))}
-              <th className="total-column">총점</th>
-            </tr>
-          </thead>
-          <tbody>
-            {players.map((player, playerIndex) => {
-              const totalScore = scores[playerIndex]?.reduce((sum, score) => sum + (score || 0), 0) || 0;
-              return (
-                <tr key={player.id}>
-                  <td className="sticky-column">{player.name}</td>
-                  {Array.from({ length: 18 }, (_, holeIndex) => (
-                    <td key={holeIndex}>
-                      <input
-                        type="number"
-                        value={scores[playerIndex]?.[holeIndex] || ''}
-                        onChange={(e) => handleScoreChange(playerIndex, holeIndex, e.target.value)}
-                        min="-4"
-                        max="12"
-                      />
-                    </td>
-                  ))}
-                  <td className="total-column">{totalScore}</td>
+        <div className="score-table-wrapper">
+          {/* Fixed Columns with scrollbar container */}
+          <div className="fixed-container">
+            <table className="fixed-table">
+              <thead>
+                <tr>
+                  <th>선수</th>
+                  <th>핸디캡</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {players.map((player, playerIndex) => {
+                  const totalScore = scores[playerIndex]?.reduce((sum, score) => sum + (score ?? 0), 0);
+                  return (
+                    <tr key={player.id}>
+                      <td>{player.name}</td>
+                      <td>{totalScore}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Scrollable Columns */}
+          <div className="scrollable-container">
+            <table className="scrollable-table">
+              <thead>
+                <tr>
+                  {Array.from({ length: 18 }, (_, i) => (
+                    <th key={i}>{i + 1}번홀</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {players.map((player, playerIndex) => (
+                  <tr key={player.id}>
+                    {Array.from({ length: 18 }, (_, holeIndex) => {
+                      const score = scores[playerIndex]?.[holeIndex];
+                      return (
+                        <td key={holeIndex}>
+                          <input
+                            type="number"
+                            value={score !== null && score !== undefined ? score : ''}
+                            onChange={(e) => handleScoreChange(playerIndex, holeIndex, e.target.value)}
+                            min="-4"
+                            max="12"
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>

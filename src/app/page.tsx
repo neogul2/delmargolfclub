@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import NavBar from "@/components/NavBar";
 import Image from 'next/image';
+import Link from "next/link";
 
 interface Score {
   hole_number: number;
@@ -300,13 +301,13 @@ export default function Home() {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <h2 style={{ margin: 0 }}>리더보드</h2>
-                <a 
+                <Link 
                   href={`/game/${selectedGame}`} 
                   className="btn"
                   style={{ padding: '0.5rem' }}
                 >
                   점수입력
-                </a>
+                </Link>
               </div>
               <table>
                 <thead>
@@ -315,7 +316,7 @@ export default function Home() {
                     <th>플레이어</th>
                     <th>조</th>
                     <th>Through</th>
-                    <th>총점</th>
+                    <th>핸디캡</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -327,7 +328,7 @@ export default function Home() {
                         <td>{player.name}</td>
                         <td>{player.teamName}</td>
                         <td>{getCompletedHoles(player.scores)}</td>
-                        <td className="total-score">
+                        <td className="handicap-score">
                           {calculateTotal(player.scores)}
                         </td>
                       </tr>
