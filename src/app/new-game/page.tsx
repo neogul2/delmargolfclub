@@ -12,11 +12,11 @@ interface PlayerInput {
 export default function NewGamePage() {
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
-  const [teamCount, setTeamCount] = useState(1);
-  const [players, setPlayers] = useState<PlayerInput[][]>([Array(4).fill({ name: "" })]);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [teamCount, setTeamCount] = useState(1);
+  const [players, setPlayers] = useState<PlayerInput[][]>([Array(4).fill({ name: '' })]);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [pendingSubmit, setPendingSubmit] = useState(false);
 

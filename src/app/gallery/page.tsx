@@ -12,10 +12,12 @@ interface Game {
 
 interface GamePhoto {
   id: string;
-  game_id: string;
+  game: {
+    id: string;
+    name: string;
+    date: string;
+  };
   photo_url: string;
-  created_at: string;
-  game: Game;
 }
 
 export default function Gallery() {
@@ -28,10 +30,11 @@ export default function Gallery() {
       setLoading(true);
       setError(null);
       try {
-        const { data, error } = await supabase
+        const { data: photos, error } = await supabase
           .from('game_photos')
           .select(`
-            *,
+            id,
+            photo_url,
             game:games (
               id,
               name,
@@ -40,11 +43,14 @@ export default function Gallery() {
           `)
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
-        setPhotos(data || []);
-      } catch (err: any) {
-        console.error('Error fetching photos:', err);
-        setError(err.message);
+        if (error) {
+          handleError(error);
+          return;
+        }
+
+        setPhotos(photos || []);
+      } catch (error) {
+        handleError(error instanceof Error ? error : new Error('Unknown error'));
       } finally {
         setLoading(false);
       }

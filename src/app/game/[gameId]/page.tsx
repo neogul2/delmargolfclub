@@ -43,6 +43,7 @@ export default function GamePage() {
   const [pendingScores, setPendingScores] = useState<{[key: string]: number}>({});
 
   const fetchGameData = useCallback(async () => {
+    setLoading(true);
     try {
       const { data: gameData, error: gameError } = await supabase
         .from('games')
@@ -67,13 +68,21 @@ export default function GamePage() {
         .eq('id', gameId)
         .single();
 
-      if (gameError) throw gameError;
-      if (!gameData) throw new Error('Game not found');
+      if (gameError) {
+        setError(gameError.message);
+        return;
+      }
+      if (!gameData) {
+        setError('Game not found');
+        return;
+      }
 
       setGame(gameData);
       // setTeams(gameData.teams); // This line was removed from the new_code, so it's removed here.
     } catch (error) {
-      handleError(error instanceof Error ? error : new Error('Unknown error'));
+      setError(error instanceof Error ? error.message : 'An unknown error occurred');
+    } finally {
+      setLoading(false);
     }
   }, [gameId]);
 

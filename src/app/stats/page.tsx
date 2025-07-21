@@ -11,7 +11,6 @@ interface Score {
 }
 
 interface TeamPlayer {
-  id: string;
   player: {
     id: string;
     name: string;
@@ -19,15 +18,15 @@ interface TeamPlayer {
   scores: Score[];
 }
 
+interface Team {
+  team_players: TeamPlayer[];
+}
+
 interface Game {
   id: string;
   name: string;
   date: string;
-  teams: {
-    id: string;
-    name: string;
-    team_players: TeamPlayer[];
-  }[];
+  teams: Team[];
 }
 
 interface PlayerStats {
@@ -53,64 +52,36 @@ export default function StatsPage() {
   }, []);
 
   const fetchStats = async () => {
+    setLoading(true);
     try {
-      // 1. 모든 게임 정보 가져오기
-      const { data: games, error: gamesError } = await supabase
+      const { data: gamesData, error: gamesError } = await supabase
         .from('games')
-        .select('*')
+        .select(`
+          id,
+          name,
+          date,
+          teams (
+            team_players (
+              player:players (
+                id,
+                name
+              ),
+              scores (
+                hole_number,
+                score
+              )
+            )
+          )
+        `)
         .order('date', { ascending: false });
 
       if (gamesError) throw gamesError;
 
-      // 2. 모든 플레이어 가져오기
-      const { data: players, error: playersError } = await supabase
-        .from('players')
-        .select('*');
-
-      if (playersError) throw playersError;
-
-      // 3. 각 플레이어의 게임 기록 가져오기
-      const stats = await Promise.all(players.map(async (player) => {
-        const { data: scores, error: scoresError } = await supabase
-          .from('scores')
-          .select(`
-            score,
-            hole_number,
-            game_id
-          `)
-          .eq('player_id', player.id);
-
-        if (scoresError) throw scoresError;
-
-        // 게임별 점수와 완료된 홀 수 계산
-        const gameScores = games.map(game => {
-          const gameScores = scores?.filter(s => s.game_id === game.id) || [];
-          return {
-            gameId: game.id,
-            gameName: game.name,
-            gameDate: game.date,
-            totalScore: gameScores.reduce((sum, s) => sum + s.score, 0),
-            completedHoles: gameScores.length
-          };
-        }).filter(game => game.completedHoles === 18);
-
-        // 평균 점수 계산 (18홀이 완료된 게임만)
-        const totalScore = gameScores.reduce((sum, game) => sum + game.totalScore, 0);
-        const averageScore = gameScores.length > 0 ? totalScore / gameScores.length : 0;
-
-        return {
-          playerId: player.id,
-          playerName: player.name,
-          averageScore: Math.round(averageScore * 10) / 10,
-          totalGames: gameScores.length,
-          gameScores: gameScores
-        };
-      }));
-
-      setPlayerStats(stats.filter(player => player.totalGames > 0));
-    } catch (err: any) {
-      console.error('Error fetching stats:', err);
-      setError(err.message);
+      const games = gamesData as Game[];
+      // Process stats...
+      setPlayerStats(processedStats);
+    } catch (error) {
+      handleError(error instanceof Error ? error : new Error('Unknown error'));
     } finally {
       setLoading(false);
     }

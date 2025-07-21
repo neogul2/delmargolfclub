@@ -3,18 +3,18 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import NavBar from "@/components/NavBar";
 
-interface Player {
-  id: string;
-  name: string;
+interface Score {
+  hole_number: number;
+  score: number;
 }
 
 interface TeamPlayer {
   id: string;
-  player: Player;
-  scores: {
-    hole_number: number;
-    score: number;
-  }[];
+  player: {
+    id: string;
+    name: string;
+  };
+  scores: Score[];
 }
 
 interface Team {
@@ -156,10 +156,9 @@ export default function Home() {
   useEffect(() => {
     const fetchGames = async () => {
       setLoading(true);
-      setError(null);
       try {
-        const { data, error } = await supabase
-          .from("games")
+        const { data: gamesData, error } = await supabase
+          .from('games')
           .select(`
             id,
             name,
@@ -168,57 +167,30 @@ export default function Home() {
               id,
               name,
               team_players (
+                id,
                 player:players (
                   id,
                   name
+                ),
+                scores (
+                  hole_number,
+                  score
                 )
               )
             )
           `)
           .order('date', { ascending: false });
-        
+
         if (error) throw error;
-        if (data) {
-          // 각 게임의 모든 플레이어의 점수를 가져오기
-          const gamesWithScores = await Promise.all((data as unknown as RawData[]).map(async game => {
-            const teams = await Promise.all((game.teams || []).map(async team => {
-              const teamPlayers = await Promise.all((team.team_players || []).map(async tp => {
-                // 각 플레이어의 점수 가져오기
-                const { data: scores } = await supabase
-                  .from("scores")
-                  .select("hole_number, score")
-                  .eq("game_id", game.id)
-                  .eq("player_id", tp.player.id);
-
-                return {
-                  player: {
-                    id: tp.player.id,
-                    name: tp.player.name
-                  },
-                  scores: scores || []
-                };
-              }));
-
-              return {
-                id: team.id,
-                name: team.name,
-                team_players: teamPlayers
-              };
-            }));
-
-            return {
-              id: game.id,
-              name: game.name,
-              date: game.date,
-              teams: teams
-            };
-          }));
-
-          setGames(gamesWithScores);
-          if (gamesWithScores.length > 0) setSelectedGame(gamesWithScores[0].id);
+        
+        const gamesWithScores = gamesData as Game[];
+        setGames(gamesWithScores);
+        
+        if (gamesWithScores.length > 0) {
+          setSelectedGame(gamesWithScores[0].id);
         }
       } catch (error) {
-        handleError(error instanceof Error ? error : { message: 'Unknown error' });
+        handleError(error instanceof Error ? error : new Error('Unknown error'));
       } finally {
         setLoading(false);
       }
