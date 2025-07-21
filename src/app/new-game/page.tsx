@@ -35,6 +35,18 @@ export default function NewGamePage() {
 
   const handleSubmitClick = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // 플레이어 이름 검증
+    for (let i = 0; i < teamCount; i++) {
+      for (let j = 0; j < 4; j++) {
+        if (!players[i][j].name.trim()) {
+          setError(`팀 ${i + 1}의 플레이어 ${j + 1} 이름을 입력해주세요.`);
+          return;
+        }
+      }
+    }
+    
+    setPendingSubmit(true);
     setShowPasswordModal(true);
   };
 
@@ -114,6 +126,7 @@ export default function NewGamePage() {
         }
       }
       setSuccess(true);
+      setShowPasswordModal(false);
     } catch (error) {
       console.error('Error creating game:', error);
       setError(error instanceof Error ? error.message : 'An unknown error occurred');
