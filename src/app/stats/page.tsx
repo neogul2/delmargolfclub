@@ -43,9 +43,8 @@ interface PlayerStats {
 }
 
 export default function StatsPage() {
+  const [loading, setLoading] = useState(false);
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStats();
@@ -77,11 +76,11 @@ export default function StatsPage() {
 
       if (gamesError) throw gamesError;
 
-      const games = gamesData as Game[];
-      // Process stats...
+      // Process the data and update playerStats
+      const processedStats = processGamesData(gamesData);
       setPlayerStats(processedStats);
     } catch (error) {
-      handleError(error instanceof Error ? error : new Error('Unknown error'));
+      console.error('Error fetching stats:', error);
     } finally {
       setLoading(false);
     }

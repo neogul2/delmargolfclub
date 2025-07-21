@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import NavBar from "@/components/NavBar";
+import Image from 'next/image';
 
 interface Score {
   hole_number: number;
@@ -40,26 +41,6 @@ interface LeaderboardPlayer {
   }[];
 }
 
-interface RawData {
-  id: string;
-  name: string;
-  date: string;
-  teams: {
-    id: string;
-    name: string;
-    team_players: {
-      player: {
-        id: string;
-        name: string;
-      };
-      scores: {
-        hole_number: number;
-        score: number;
-      }[];
-    }[];
-  }[];
-}
-
 interface GamePhoto {
   id: string;
   game_id: string;
@@ -69,8 +50,7 @@ interface GamePhoto {
 
 export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [gamePhotos, setGamePhotos] = useState<{ [key: string]: GamePhoto[] }>({});
@@ -229,19 +209,6 @@ export default function Home() {
         <h1 style={{ margin: 0 }}>⛳️ Delmar Men&apos;s Golf Club</h1>
       </div>
 
-      {error && (
-        <div className="card error">
-          <p>데이터를 불러오는데 실패했습니다: {error}</p>
-          <button 
-            className="btn" 
-            onClick={() => window.location.reload()}
-            style={{ marginTop: '1rem' }}
-          >
-            다시 시도
-          </button>
-        </div>
-      )}
-
       {loading ? (
         <div className="card">
           <p>로딩 중...</p>
@@ -283,11 +250,13 @@ export default function Home() {
             <div className="game-photos">
               {gamePhotos[selectedGame]?.map((photo) => (
                 <div key={photo.id} className="game-photo">
-                  <img
+                  <Image
                     src={photo.photo_url}
                     alt={`${selectedGame} 경기 사진`}
+                    width={200}
+                    height={150}
                     className="rounded shadow"
-                    style={{ width: '200px', height: '150px', objectFit: 'cover' }}
+                    style={{ objectFit: 'cover' }}
                   />
                 </div>
               ))}

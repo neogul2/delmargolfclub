@@ -18,7 +18,6 @@ export default function NewGamePage() {
   const [teamCount, setTeamCount] = useState(1);
   const [players, setPlayers] = useState<PlayerInput[][]>([Array(4).fill({ name: '' })]);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [pendingSubmit, setPendingSubmit] = useState(false);
 
   const handleTeamCountChange = (count: number) => {
     setTeamCount(count);
@@ -35,7 +34,6 @@ export default function NewGamePage() {
 
   const handleSubmitClick = (e: React.FormEvent) => {
     e.preventDefault();
-    setPendingSubmit(true);
     setShowPasswordModal(true);
   };
 
@@ -234,7 +232,6 @@ export default function NewGamePage() {
         isOpen={showPasswordModal}
         onClose={() => {
           setShowPasswordModal(false);
-          setPendingSubmit(false);
         }}
         onConfirm={handleSubmit}
         message="새 경기를 생성하려면 비밀번호를 입력하세요."

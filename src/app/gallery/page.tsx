@@ -3,12 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
-
-interface Game {
-  id: string;
-  name: string;
-  date: string;
-}
+import Image from 'next/image';
 
 interface GamePhoto {
   id: string;
@@ -123,12 +118,14 @@ export default function Gallery() {
         <div className="gallery-grid">
           {photos.map((photo) => (
             <div key={photo.id} className="gallery-image-container">
-              <img
+              <Image
                 src={photo.photo_url}
                 alt={`${photo.game.name} 경기 사진`}
+                width={300}
+                height={200}
                 className="gallery-image"
                 onClick={(e) => handleImageClick(e, photo)}
-                style={{ cursor: 'pointer' }}
+                style={{ cursor: 'pointer', objectFit: 'cover' }}
               />
             </div>
           ))}
