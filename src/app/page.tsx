@@ -173,7 +173,11 @@ export default function Home() {
           setSelectedGame(gamesWithScores[0].id);
         }
       } catch (error) {
-        console.error('Error:', error);
+        if (error instanceof Error) {
+          console.error('Error:', error.message);
+        } else {
+          console.error('An unknown error occurred');
+        }
       } finally {
         setLoading(false);
       }

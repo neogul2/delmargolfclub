@@ -5,11 +5,6 @@ import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
 import * as XLSX from 'xlsx';
 
-interface Score {
-  hole_number: number;
-  score: number;
-}
-
 interface PlayerStats {
   player: {
     id: string;
@@ -61,10 +56,14 @@ export default function StatsPage() {
       }
 
       // Process the data and calculate stats
-      const processedStats = calculateStats(gamesData || []);
+      const processedStats = processGamesData(gamesData || []);
       setPlayerStats(processedStats);
     } catch (error) {
-      console.error('Error:', error);
+      if (error instanceof Error) {
+        console.error('Error:', error.message);
+      } else {
+        console.error('An unknown error occurred');
+      }
     } finally {
       setLoading(false);
     }
@@ -74,7 +73,7 @@ export default function StatsPage() {
     // 엑셀 데이터 준비
     const excelData = playerStats.map(player => {
       const row: any = {
-        '플레이어': player.playerName,
+        '플레이어': player.player.name,
         '평균 스코어': player.averageScore,
         '참여 경기 수': player.totalGames
       };
@@ -141,8 +140,8 @@ export default function StatsPage() {
             </thead>
             <tbody>
               {playerStats.map(player => (
-                <tr key={player.playerId}>
-                  <td>{player.playerName}</td>
+                <tr key={player.player.id}>
+                  <td>{player.player.name}</td>
                   <td>{player.averageScore}</td>
                   <td>{player.totalGames}</td>
                   {player.gameScores.map(game => (

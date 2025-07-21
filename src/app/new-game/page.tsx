@@ -18,6 +18,7 @@ export default function NewGamePage() {
   const [teamCount, setTeamCount] = useState(1);
   const [players, setPlayers] = useState<PlayerInput[][]>([Array(4).fill({ name: '' })]);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState(false);
 
   const handleTeamCountChange = (count: number) => {
     setTeamCount(count);
@@ -52,70 +53,76 @@ export default function NewGamePage() {
     return hasError;
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const hasError = validatePlayers();
-    if (hasError) return;
+  const handleSubmit = async () => {
+    if (!pendingSubmit) return;
     
     setLoading(true);
+    setError(null);
     try {
       // 1. 경기 생성
-      const { data: game, error: gameError } = await supabase
-        .from("games")
+      const { data: gameData, error: gameError } = await supabase
+        .from('games')
         .insert([{ name, date }])
         .select()
         .single();
 
       if (gameError) throw gameError;
-      if (!game) throw new Error("경기 생성 실패");
 
-      // 2. 조/플레이어 생성
+      // 2. 팀 생성
       for (let i = 0; i < teamCount; i++) {
-        const { data: team, error: teamError } = await supabase
-          .from("teams")
-          .insert([{ game_id: game.id, name: `${i + 1}조` }])
+        const { data: teamData, error: teamError } = await supabase
+          .from('teams')
+          .insert([{ name: `${i + 1}조`, game_id: gameData.id }])
           .select()
           .single();
 
         if (teamError) throw teamError;
-        if (!team) continue;
 
+        // 3. 각 팀의 플레이어 생성
         for (let j = 0; j < 4; j++) {
           const playerName = players[i][j].name.trim();
           if (!playerName) continue;
 
-          // 플레이어 생성 또는 기존 플레이어 찾기
-          let { data: player, error: playerError } = await supabase
-            .from("players")
-            .select("*")
-            .eq("name", playerName)
+          // 3.1 플레이어 생성 또는 조회
+          const { data: existingPlayer, error: playerError } = await supabase
+            .from('players')
+            .select()
+            .eq('name', playerName)
             .single();
 
+          let playerId;
           if (playerError) {
-            // 없으면 새로 생성
-            const { data: newPlayer, error: newPlayerError } = await supabase
-              .from("players")
+            // 플레이어가 없으면 새로 생성
+            const { data: newPlayer, error: createError } = await supabase
+              .from('players')
               .insert([{ name: playerName }])
               .select()
               .single();
 
-            if (newPlayerError) throw newPlayerError;
-            player = newPlayer;
+            if (createError) throw createError;
+            playerId = newPlayer.id;
+          } else {
+            playerId = existingPlayer.id;
           }
 
-          // 조-플레이어 연결
-          const { error: teamPlayerError } = await supabase
-            .from("team_players")
-            .insert({ team_id: team.id, player_id: player.id });
+          // 3.2 team_players 테이블에 연결 정보 저장
+          const { error: linkError } = await supabase
+            .from('team_players')
+            .insert([{
+              team_id: teamData.id,
+              player_id: playerId
+            }]);
 
-          if (teamPlayerError) throw teamPlayerError;
+          if (linkError) throw linkError;
         }
       }
       setSuccess(true);
     } catch (error) {
-      handleError(error instanceof Error ? error : new Error('Unknown error'));
+      console.error('Error creating game:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
+      setPendingSubmit(false);
     }
   };
 
