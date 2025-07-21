@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
 import Link from 'next/link';
@@ -10,9 +10,13 @@ interface Player {
   name: string;
 }
 
+interface Score {
+  score: number;
+}
+
 interface TeamPlayer {
   player: Player;
-  scores: { score: number }[];
+  scores: Score[];
 }
 
 interface Team {
@@ -28,6 +32,25 @@ interface Game {
   teams: Team[];
 }
 
+interface RawSupabaseResponse {
+  id: string;
+  name: string;
+  date: string;
+  teams: {
+    id: string;
+    name: string;
+    team_players: {
+      player: {
+        id: string;
+        name: string;
+      };
+      scores: {
+        score: number;
+      }[];
+    }[];
+  }[];
+}
+
 export default function GamePage({ params }: { params: { gameId: string } }) {
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,13 +58,9 @@ export default function GamePage({ params }: { params: { gameId: string } }) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [scores, setScores] = useState<number[][]>([]);
 
-  useEffect(() => {
-    fetchGameData();
-  }, []);
-
-  const fetchGameData = async () => {
+  const fetchGameData = useCallback(async () => {
     try {
-      const { data: gameData, error: gameError } = await supabase
+      const { data, error: gameError } = await supabase
         .from('games')
         .select(`
           id,
@@ -65,14 +84,36 @@ export default function GamePage({ params }: { params: { gameId: string } }) {
         .single();
 
       if (gameError) throw gameError;
+      if (!data) throw new Error('No data returned from Supabase');
 
-      setGame(gameData);
+      // First cast to unknown, then to our known raw response type
+      const rawData = data as unknown as RawSupabaseResponse;
+      
+      // Transform the data to match our Game interface
+      const transformedGame: Game = {
+        id: rawData.id,
+        name: rawData.name,
+        date: rawData.date,
+        teams: rawData.teams.map(team => ({
+          id: team.id,
+          name: team.name,
+          team_players: team.team_players.map(tp => ({
+            player: {
+              id: tp.player.id,
+              name: tp.player.name
+            },
+            scores: tp.scores
+          }))
+        }))
+      };
+
+      setGame(transformedGame);
 
       // Extract players and scores
       const allPlayers: Player[] = [];
       const allScores: number[][] = [];
 
-      gameData.teams.forEach(team => {
+      transformedGame.teams.forEach(team => {
         team.team_players.forEach(tp => {
           allPlayers.push(tp.player);
           allScores.push(tp.scores.map(s => s.score));
@@ -85,7 +126,11 @@ export default function GamePage({ params }: { params: { gameId: string } }) {
       console.error('Error fetching game:', error);
       setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
     }
-  };
+  }, [params.gameId]);
+
+  useEffect(() => {
+    fetchGameData();
+  }, [fetchGameData]);
 
   const handleScoreChange = (playerIndex: number, holeIndex: number, value: string) => {
     const newValue = value === '' ? null : Math.max(-4, Math.min(12, parseInt(value) || 0));
@@ -106,12 +151,14 @@ export default function GamePage({ params }: { params: { gameId: string } }) {
     setError(null);
 
     try {
+      if (!game) return;
+
       // Delete existing scores
       const { error: deleteError } = await supabase
         .from('scores')
         .delete()
         .in('team_player_id', 
-          game!.teams.flatMap(team => 
+          game.teams.flatMap(team => 
             team.team_players.map(tp => tp.player.id)
           )
         );
@@ -120,7 +167,7 @@ export default function GamePage({ params }: { params: { gameId: string } }) {
 
       // Insert new scores
       let playerIndex = 0;
-      for (const team of game!.teams) {
+      for (const team of game.teams) {
         for (const tp of team.team_players) {
           const playerScores = scores[playerIndex] || [];
           
