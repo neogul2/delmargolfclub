@@ -18,12 +18,6 @@ export default function NavBar() {
         href="/new-game"
         className={`nav-link ${pathname === '/new-game' ? 'active' : ''}`}
       >
-        ✏️ 점수입력
-      </Link>
-      <Link
-        href="/new-game"
-        className={`nav-link ${pathname === '/new-game' ? 'active' : ''}`}
-      >
         ➕ 새 경기
       </Link>
       <Link

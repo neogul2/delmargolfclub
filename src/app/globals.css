@@ -670,3 +670,83 @@ input.score-input:focus {
 .btn-danger:hover {
   background-color: #b91c1c;
 }
+
+/* Score Input Page Styles */
+.score-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  margin: 0 -1rem;
+  padding: 0 1rem;
+}
+
+.score-table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  background: white;
+}
+
+.score-table th,
+.score-table td {
+  border: 1px solid #e5e7eb;
+  padding: 8px;
+  text-align: center;
+}
+
+.score-table input {
+  width: 100%;
+  border: none;
+  text-align: center;
+  background: transparent;
+  padding: 4px;
+  font-size: 16px; /* Better for mobile */
+}
+
+.score-table input::-webkit-inner-spin-button,
+.score-table input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.score-table input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.sticky-column {
+  position: sticky;
+  left: 0;
+  background: white;
+  z-index: 1;
+  border-right: 1px solid #e5e7eb;
+}
+
+.total-column {
+  position: sticky;
+  right: 0;
+  background: white;
+  z-index: 1;
+  border-left: 1px solid #e5e7eb;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 768px) {
+  .score-table th,
+  .score-table td {
+    padding: 4px;
+    min-width: 40px;
+  }
+
+  .score-table input {
+    font-size: 14px;
+  }
+
+  .sticky-column {
+    min-width: 80px;
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

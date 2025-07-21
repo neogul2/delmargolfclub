@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
+import Link from 'next/link';
 
 interface Player {
   id: string;
@@ -11,12 +11,8 @@ interface Player {
 }
 
 interface TeamPlayer {
-  id: string;
   player: Player;
-  scores: {
-    hole_number: number;
-    score: number;
-  }[];
+  scores: { score: number }[];
 }
 
 interface Team {
@@ -32,300 +28,190 @@ interface Game {
   teams: Team[];
 }
 
-export default function GamePage() {
-  const params = useParams();
-  const gameId = params?.gameId as string;
+export default function GamePage({ params }: { params: { gameId: string } }) {
   const [game, setGame] = useState<Game | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentHole, setCurrentHole] = useState(1);
-  const [saving, setSaving] = useState(false);
-  const [pendingScores, setPendingScores] = useState<{[key: string]: number}>({});
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [scores, setScores] = useState<number[][]>([]);
 
-  const fetchGameData = useCallback(async () => {
-    setLoading(true);
+  useEffect(() => {
+    fetchGameData();
+  }, []);
+
+  const fetchGameData = async () => {
     try {
       const { data: gameData, error: gameError } = await supabase
         .from('games')
         .select(`
-          *,
+          id,
+          name,
+          date,
           teams (
             id,
             name,
             team_players (
-              id,
-              player:players (
+              player (
                 id,
                 name
               ),
               scores (
-                hole_number,
                 score
               )
             )
           )
         `)
-        .eq('id', gameId)
+        .eq('id', params.gameId)
         .single();
 
-      if (gameError) {
-        setError(gameError.message);
-        return;
-      }
-      if (!gameData) {
-        setError('Game not found');
-        return;
-      }
+      if (gameError) throw gameError;
 
       setGame(gameData);
-      // setTeams(gameData.teams); // This line was removed from the new_code, so it's removed here.
+
+      // Extract players and scores
+      const allPlayers: Player[] = [];
+      const allScores: number[][] = [];
+
+      gameData.teams.forEach(team => {
+        team.team_players.forEach(tp => {
+          allPlayers.push(tp.player);
+          allScores.push(tp.scores.map(s => s.score));
+        });
+      });
+
+      setPlayers(allPlayers);
+      setScores(allScores);
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'An unknown error occurred');
+      console.error('Error fetching game:', error);
+      setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
+    }
+  };
+
+  const handleScoreChange = (playerIndex: number, holeIndex: number, value: string) => {
+    const newValue = value === '' ? null : Math.max(-4, Math.min(12, parseInt(value) || 0));
+    
+    setScores(prevScores => {
+      const newScores = [...prevScores];
+      if (!newScores[playerIndex]) {
+        newScores[playerIndex] = Array(18).fill(null);
+      }
+      newScores[playerIndex] = [...newScores[playerIndex]];
+      newScores[playerIndex][holeIndex] = newValue;
+      return newScores;
+    });
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Delete existing scores
+      const { error: deleteError } = await supabase
+        .from('scores')
+        .delete()
+        .in('team_player_id', 
+          game!.teams.flatMap(team => 
+            team.team_players.map(tp => tp.player.id)
+          )
+        );
+
+      if (deleteError) throw deleteError;
+
+      // Insert new scores
+      let playerIndex = 0;
+      for (const team of game!.teams) {
+        for (const tp of team.team_players) {
+          const playerScores = scores[playerIndex] || [];
+          
+          for (let hole = 0; hole < 18; hole++) {
+            const score = playerScores[hole];
+            if (score !== null && score !== undefined) {
+              const { error: insertError } = await supabase
+                .from('scores')
+                .insert({
+                  team_player_id: tp.player.id,
+                  hole: hole + 1,
+                  score: score
+                });
+
+              if (insertError) throw insertError;
+            }
+          }
+          playerIndex++;
+        }
+      }
+
+      await fetchGameData();
+    } catch (error) {
+      console.error('Error saving scores:', error);
+      setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
-  }, [gameId]);
-
-  useEffect(() => {
-    fetchGameData();
-  }, [gameId, fetchGameData]);
-
-  const isHoleComplete = (holeNumber: number): boolean => {
-    if (!game) return false;
-    let complete = true;
-    game.teams.forEach(team => {
-      team.team_players.forEach(tp => {
-        if (!tp.scores.some(s => s.hole_number === holeNumber)) {
-          complete = false;
-        }
-      });
-    });
-    return complete;
   };
 
-  const handleScoreChange = (teamPlayerId: string, playerId: string, value: number) => {
-    setPendingScores(prev => ({
-      ...prev,
-      [`${teamPlayerId}-${playerId}`]: value
-    }));
-  };
-
-  const handleSave = async (teamId: string) => {
-    if (!game) return;
-    
-    setSaving(true);
-    try {
-      // 현재 선택된 팀의 플레이어 점수만 저장
-      const team = game.teams.find(t => t.id === teamId);
-      if (!team) return;
-
-      for (const tp of team.team_players) {
-        const scoreKey = `${tp.id}-${tp.player.id}`;
-        const existingScore = tp.scores.find(s => s.hole_number === currentHole);
-        
-        // pendingScores에 있는 경우에만 업데이트하거나 새로 저장
-        if (scoreKey in pendingScores || !existingScore) {
-          const score = pendingScores[scoreKey] ?? 0;
-
-          if (existingScore) {
-            // 기존 점수 업데이트
-            const { error: updateError } = await supabase
-              .from('scores')
-              .update({ score: score })
-              .eq('game_id', gameId)
-              .eq('player_id', tp.player.id)
-              .eq('hole_number', currentHole);
-
-            if (updateError) throw updateError;
-          } else {
-            // 새로운 점수 입력
-            const { error: insertError } = await supabase
-              .from('scores')
-              .insert([
-                {
-                  game_id: gameId,
-                  team_id: team.id,
-                  player_id: tp.player.id,
-                  team_player_id: tp.id,
-                  hole_number: currentHole,
-                  score: score
-                }
-              ]);
-
-            if (insertError) throw insertError;
-          }
-        }
-      }
-
-      // 데이터 새로고침
-      await fetchGameData();
-      
-      // 저장된 팀의 점수만 pendingScores에서 제거
-      const newPendingScores = { ...pendingScores };
-      team.team_players.forEach(tp => {
-        const scoreKey = `${tp.id}-${tp.player.id}`;
-        delete newPendingScores[scoreKey];
-      });
-      setPendingScores(newPendingScores);
-      
-      alert('점수가 저장되었습니다.');
-    } catch (error) {
-      console.error('Error saving scores:', error);
-      alert('점수 저장 중 오류가 발생했습니다.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const calculateTotal = (scores: { hole_number: number; score: number }[] = []): number => {
-    return scores.reduce((sum, s) => sum + s.score, 0);
-  };
-
-  if (loading) return <div className="container">로딩 중...</div>;
   if (error) return <div className="container">에러: {error}</div>;
   if (!game) return <div className="container">게임을 찾을 수 없습니다.</div>;
 
   return (
     <div className="container page-container">
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ margin: 0 }}>{game.name}</h1>
-        <p style={{ margin: '0.5rem 0', color: 'var(--gray)' }}>
-          {new Date(game.date).toLocaleDateString()}
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h2 style={{ margin: 0 }}>{game.name}</h2>
+        <div style={{ fontSize: '0.9rem', color: '#666' }}>{new Date(game.date).toLocaleDateString()}</div>
       </div>
 
-      <div style={{ marginBottom: '1rem' }}>
-        <h2 style={{ margin: 0 }}>
-          점수 입력 - {currentHole}번 홀
-        </h2>
-      </div>
-
-      {/* 홀별 점수 표시 */}
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <h3>홀별 점수</h3>
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>플레이어</th>
-                {Array.from({ length: 18 }, (_, i) => (
-                  <th key={i} className={currentHole === i + 1 ? 'active' : ''}>
-                    {i + 1}
-                  </th>
-                ))}
-                <th>총점</th>
-              </tr>
-            </thead>
-            <tbody>
-              {game.teams.map(team => (
-                team.team_players.map(tp => (
-                  <tr key={tp.id}>
-                    <td>{tp.player.name}</td>
-                    {Array.from({ length: 18 }, (_, i) => {
-                      const score = tp.scores.find(s => s.hole_number === i + 1)?.score;
-                      const isPending = pendingScores[`${tp.id}-${tp.player.id}`] && currentHole === i + 1;
-                      const displayScore = isPending ? pendingScores[`${tp.id}-${tp.player.id}`] : score;
-                      
-                      return (
-                        <td 
-                          key={i}
-                          className={currentHole === i + 1 ? 'active' : ''}
-                          style={{ 
-                            cursor: 'pointer',
-                            backgroundColor: displayScore !== undefined ? (currentHole === i + 1 ? 'var(--primary-light)' : '#e5e5e5') : 'transparent'
-                          }}
-                          onClick={() => setCurrentHole(i + 1)}
-                        >
-                          {displayScore}
-                        </td>
-                      );
-                    })}
-                    <td className="total-score">{calculateTotal(tp.scores)}</td>
-                  </tr>
-                ))
+      <div className="score-container">
+        <table className="score-table">
+          <thead>
+            <tr>
+              <th className="sticky-column">선수</th>
+              {Array.from({ length: 18 }, (_, i) => (
+                <th key={i}>{i + 1}번홀</th>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* 홀 선택 버튼 */}
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', padding: '0.5rem' }}>
-          {Array.from({ length: 18 }).map((_, i) => {
-            const holeNumber = i + 1;
-            const isComplete = isHoleComplete(holeNumber);
-            return (
-              <button
-                key={i}
-                className={`hole-button ${currentHole === holeNumber ? 'active' : ''} ${isComplete ? 'complete' : ''}`}
-                onClick={() => setCurrentHole(holeNumber)}
-              >
-                {holeNumber}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 점수 입력 */}
-      {game.teams.map((team) => (
-        <div key={team.id} className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2 style={{ margin: 0 }}>{team.name}</h2>
-            <button
-              className="btn"
-              onClick={() => handleSave(team.id)}
-              disabled={saving}
-            >
-              {saving ? "저장 중..." : "저장"}
-            </button>
-          </div>
-          <div className="score-input-container">
-            {team.team_players.map((tp) => {
-              const currentScore = tp.scores.find(s => s.hole_number === currentHole)?.score || 0;
-              const pendingScore = pendingScores[`${tp.id}-${tp.player.id}`];
-              const displayScore = pendingScore !== undefined ? pendingScore : currentScore;
-              
+              <th className="total-column">총점</th>
+            </tr>
+          </thead>
+          <tbody>
+            {players.map((player, playerIndex) => {
+              const totalScore = scores[playerIndex]?.reduce((sum, score) => sum + (score || 0), 0) || 0;
               return (
-                <div key={tp.id} className="player-score">
-                  <div className="player-name">{tp.player.name}</div>
-                  <div className="score-info">
-                    <div className="total-score">총점: {calculateTotal(tp.scores)}</div>
-                    <div className="score-controls">
-                      <button
-                        className="score-btn minus"
-                        onClick={() => handleScoreChange(tp.id, tp.player.id, Math.max(-4, displayScore - 1))}
-                      >
-                        -
-                      </button>
+                <tr key={player.id}>
+                  <td className="sticky-column">{player.name}</td>
+                  {Array.from({ length: 18 }, (_, holeIndex) => (
+                    <td key={holeIndex}>
                       <input
                         type="number"
-                        value={displayScore}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value) || 0;
-                          handleScoreChange(tp.id, tp.player.id, Math.max(-4, Math.min(value, 10)));
-                        }}
+                        value={scores[playerIndex]?.[holeIndex] || ''}
+                        onChange={(e) => handleScoreChange(playerIndex, holeIndex, e.target.value)}
                         min="-4"
-                        max="10"
-                        className="score-input"
+                        max="12"
                       />
-                      <button
-                        className="score-btn plus"
-                        onClick={() => handleScoreChange(tp.id, tp.player.id, Math.min(10, displayScore + 1))}
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                    </td>
+                  ))}
+                  <td className="total-column">{totalScore}</td>
+                </tr>
               );
             })}
-          </div>
-        </div>
-      ))}
+          </tbody>
+        </table>
+      </div>
 
-      <NavBar gameId={gameId} />
+      <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+        <button
+          className="btn"
+          onClick={handleSave}
+          disabled={loading}
+          style={{ flex: 1 }}
+        >
+          {loading ? "저장 중..." : "저장"}
+        </button>
+        <Link href="/" className="btn btn-outline" style={{ flex: 1 }}>
+          리더보드
+        </Link>
+      </div>
+
+      <NavBar />
     </div>
   );
 } 
