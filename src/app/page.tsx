@@ -1,95 +1,365 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import NavBar from "@/components/NavBar";
+
+interface Player {
+  id: string;
+  name: string;
+}
+
+interface TeamPlayer {
+  id: string;
+  player: Player;
+  scores: {
+    hole_number: number;
+    score: number;
+  }[];
+}
+
+interface Team {
+  id: string;
+  name: string;
+  team_players: TeamPlayer[];
+}
+
+interface Game {
+  id: string;
+  name: string;
+  date: string;
+  teams: Team[];
+}
+
+interface LeaderboardPlayer {
+  id: string;
+  name: string;
+  teamName: string;
+  scores: {
+    hole_number: number;
+    score: number;
+  }[];
+}
+
+interface RawData {
+  id: string;
+  name: string;
+  date: string;
+  teams: {
+    id: string;
+    name: string;
+    team_players: {
+      player: {
+        id: string;
+        name: string;
+      };
+      scores: {
+        hole_number: number;
+        score: number;
+      }[];
+    }[];
+  }[];
+}
+
+interface GamePhoto {
+  id: string;
+  game_id: string;
+  photo_url: string;
+  created_at: string;
+}
 
 export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [games, setGames] = useState<Game[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [gamePhotos, setGamePhotos] = useState<{ [key: string]: GamePhoto[] }>({});
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  // 게임의 사진 가져오기
+  const fetchGamePhotos = async (gameId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("game_photos")
+        .select("*")
+        .eq("game_id", gameId);
+
+      if (error) throw error;
+      setGamePhotos(prev => ({
+        ...prev,
+        [gameId]: data || []
+      }));
+    } catch (err) {
+      console.error('Error fetching game photos:', err);
+    }
+  };
+
+  // 게임이 선택될 때마다 사진 가져오기
+  useEffect(() => {
+    if (selectedGame) {
+      fetchGamePhotos(selectedGame);
+    }
+  }, [selectedGame]);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedGame) return;
+
+    const currentPhotos = gamePhotos[selectedGame] || [];
+    if (currentPhotos.length >= 2) {
+      alert('한 게임당 최대 2장의 사진만 업로드할 수 있습니다.');
+      return;
+    }
+
+    setSelectedFile(file);
+    handleUpload(file);
+  };
+
+  const handleUpload = async (file: File) => {
+    if (!selectedGame) return;
+    
+    setUploadLoading(true);
+    try {
+      // 파일 업로드
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${selectedGame}-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('game-photos')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // 파일의 공개 URL 가져오기
+      const { data: { publicUrl } } = supabase.storage
+        .from('game-photos')
+        .getPublicUrl(fileName);
+
+      // DB에 사진 정보 저장
+      const { error: dbError } = await supabase
+        .from('game_photos')
+        .insert([{
+          game_id: selectedGame,
+          photo_url: publicUrl
+        }]);
+
+      if (dbError) throw dbError;
+
+      // 사진 목록 새로고침
+      fetchGamePhotos(selectedGame);
+      alert('사진이 업로드되었습니다.');
+      setSelectedFile(null);
+    } catch (err: any) {
+      console.error('Error uploading photo:', err);
+      alert('사진 업로드에 실패했습니다.');
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchGames = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data, error } = await supabase
+          .from("games")
+          .select(`
+            id,
+            name,
+            date,
+            teams (
+              id,
+              name,
+              team_players (
+                player:players (
+                  id,
+                  name
+                )
+              )
+            )
+          `)
+          .order('date', { ascending: false });
+        
+        if (error) throw error;
+        if (data) {
+          // 각 게임의 모든 플레이어의 점수를 가져오기
+          const gamesWithScores = await Promise.all((data as unknown as RawData[]).map(async game => {
+            const teams = await Promise.all((game.teams || []).map(async team => {
+              const teamPlayers = await Promise.all((team.team_players || []).map(async tp => {
+                // 각 플레이어의 점수 가져오기
+                const { data: scores } = await supabase
+                  .from("scores")
+                  .select("hole_number, score")
+                  .eq("game_id", game.id)
+                  .eq("player_id", tp.player.id);
+
+                return {
+                  player: {
+                    id: tp.player.id,
+                    name: tp.player.name
+                  },
+                  scores: scores || []
+                };
+              }));
+
+              return {
+                id: team.id,
+                name: team.name,
+                team_players: teamPlayers
+              };
+            }));
+
+            return {
+              id: game.id,
+              name: game.name,
+              date: game.date,
+              teams: teams
+            };
+          }));
+
+          setGames(gamesWithScores);
+          if (gamesWithScores.length > 0) setSelectedGame(gamesWithScores[0].id);
+        }
+      } catch (err: any) {
+        console.error('Error fetching games:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchGames();
+  }, []);
+
+  const calculateTotal = (scores: { hole_number: number; score: number }[] = []): number => {
+    return scores.reduce((sum, s) => sum + s.score, 0);
+  };
+
+  const getCompletedHoles = (scores: { hole_number: number; score: number }[] = []): string => {
+    const completedHoles = scores.length;
+    return `${completedHoles}/18`;
+  };
+
+  const getAllPlayers = (game: Game): LeaderboardPlayer[] => {
+    return game.teams.flatMap(team => 
+      team.team_players.map(tp => ({
+        id: tp.player.id,
+        name: tp.player.name,
+        teamName: team.name,
+        scores: tp.scores
+      }))
+    );
+  };
+
+  return (
+    <div className="container page-container">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <h1 style={{ margin: 0 }}>⛳️ Delmar Men's Golf Club</h1>
+      </div>
+
+      {error && (
+        <div className="card error">
+          <p>데이터를 불러오는데 실패했습니다: {error}</p>
+          <button 
+            className="btn" 
+            onClick={() => window.location.reload()}
+            style={{ marginTop: '1rem' }}
           >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+            다시 시도
+          </button>
         </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
+
+      {loading ? (
+        <div className="card">
+          <p>로딩 중...</p>
+        </div>
+      ) : games.length === 0 ? (
+        <div className="card">
+          <p>아직 등록된 경기가 없습니다.</p>
+          <p>새 경기를 생성해보세요!</p>
+        </div>
+      ) : (
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+            <select 
+              className="input" 
+              value={selectedGame || ''} 
+              onChange={(e) => setSelectedGame(e.target.value)}
+              style={{ margin: 0, flex: 1 }}
+            >
+              {games.map((game) => (
+                <option key={game.id} value={game.id}>
+                  {game.name} ({new Date(game.date).toLocaleDateString()})
+                </option>
+              ))}
+            </select>
+            <label className="btn btn-outline" style={{ margin: 0, cursor: 'pointer' }}>
+              {uploadLoading ? "업로드 중..." : "📸 사진 업로드"}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+                disabled={uploadLoading}
+              />
+            </label>
+          </div>
+
+          {/* 현재 게임의 사진 표시 */}
+          {selectedGame && gamePhotos[selectedGame]?.length > 0 && (
+            <div className="game-photos">
+              {gamePhotos[selectedGame].map((photo: GamePhoto) => (
+                <div key={photo.id} className="game-photo">
+                  <img src={photo.photo_url} alt="경기 사진" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {selectedGame && games.find(g => g.id === selectedGame) && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h2 style={{ margin: 0 }}>리더보드</h2>
+                <a 
+                  href={`/game/${selectedGame}`} 
+                  className="btn"
+                  style={{ padding: '0.5rem' }}
+                >
+                  점수입력
+                </a>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>순위</th>
+                    <th>플레이어</th>
+                    <th>조</th>
+                    <th>Through</th>
+                    <th>총점</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getAllPlayers(games.find(g => g.id === selectedGame)!)
+                    .sort((a, b) => calculateTotal(a.scores) - calculateTotal(b.scores))
+                    .map((player, index) => (
+                      <tr key={player.id}>
+                        <td>{index + 1}</td>
+                        <td>{player.name}</td>
+                        <td>{player.teamName}</td>
+                        <td>{getCompletedHoles(player.scores)}</td>
+                        <td className="total-score">
+                          {calculateTotal(player.scores)}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      <NavBar />
     </div>
   );
 }
