@@ -48,6 +48,31 @@ interface GamePhoto {
   created_at: string;
 }
 
+interface SupabaseError {
+  message: string;
+}
+
+interface GameData {
+  id: string;
+  name: string;
+  date: string;
+  teams: {
+    id: string;
+    name: string;
+    team_players: {
+      id: string;
+      player: {
+        id: string;
+        name: string;
+      };
+      scores: {
+        hole_number: number;
+        score: number;
+      }[];
+    }[];
+  }[];
+}
+
 export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(false);
@@ -166,7 +191,7 @@ export default function Home() {
           return;
         }
         
-        const gamesWithScores = gamesData as Game[];
+        const gamesWithScores = (gamesData || []) as GameData[];
         setGames(gamesWithScores);
         
         if (gamesWithScores.length > 0) {

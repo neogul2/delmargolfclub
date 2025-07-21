@@ -38,21 +38,6 @@ export default function NewGamePage() {
     setShowPasswordModal(true);
   };
 
-  const validatePlayers = () => {
-    let hasError = false;
-    for (let i = 0; i < teamCount; i++) {
-      for (let j = 0; j < 4; j++) {
-        if (!players[i][j].name.trim()) {
-          setError(`팀 ${i + 1}의 플레이어 ${j + 1} 이름을 입력해주세요.`);
-          hasError = true;
-          break;
-        }
-      }
-      if (hasError) break;
-    }
-    return hasError;
-  };
-
   const handleSubmit = async () => {
     if (!pendingSubmit) return;
     
@@ -66,7 +51,10 @@ export default function NewGamePage() {
         .select()
         .single();
 
-      if (gameError) throw gameError;
+      if (gameError) {
+        setError(gameError.message);
+        return;
+      }
 
       // 2. 팀 생성
       for (let i = 0; i < teamCount; i++) {
@@ -76,7 +64,10 @@ export default function NewGamePage() {
           .select()
           .single();
 
-        if (teamError) throw teamError;
+        if (teamError) {
+          setError(teamError.message);
+          return;
+        }
 
         // 3. 각 팀의 플레이어 생성
         for (let j = 0; j < 4; j++) {
@@ -99,7 +90,10 @@ export default function NewGamePage() {
               .select()
               .single();
 
-            if (createError) throw createError;
+            if (createError) {
+              setError(createError.message);
+              return;
+            }
             playerId = newPlayer.id;
           } else {
             playerId = existingPlayer.id;
@@ -113,13 +107,16 @@ export default function NewGamePage() {
               player_id: playerId
             }]);
 
-          if (linkError) throw linkError;
+          if (linkError) {
+            setError(linkError.message);
+            return;
+          }
         }
       }
       setSuccess(true);
     } catch (error) {
       console.error('Error creating game:', error);
-      setError(error.message);
+      setError(error instanceof Error ? error.message : 'An unknown error occurred');
     } finally {
       setLoading(false);
       setPendingSubmit(false);

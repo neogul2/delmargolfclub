@@ -5,6 +5,24 @@ import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
 import * as XLSX from 'xlsx';
 
+interface GameData {
+  id: string;
+  name: string;
+  date: string;
+  teams: {
+    team_players: {
+      player: {
+        id: string;
+        name: string;
+      };
+      scores: {
+        hole_number: number;
+        score: number;
+      }[];
+    }[];
+  }[];
+}
+
 interface PlayerStats {
   player: {
     id: string;
@@ -56,7 +74,8 @@ export default function StatsPage() {
       }
 
       // Process the data and calculate stats
-      const processedStats = processGamesData(gamesData || []);
+      const games = (gamesData || []) as GameData[];
+      const processedStats = calculatePlayerStats(games);
       setPlayerStats(processedStats);
     } catch (error) {
       if (error instanceof Error) {
@@ -67,6 +86,33 @@ export default function StatsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const calculatePlayerStats = (games: GameData[]): PlayerStats[] => {
+    const playerScores: { [key: string]: { totalScore: number; gamesPlayed: number } } = {};
+
+    games.forEach(game => {
+      game.teams.forEach(team => {
+        team.team_players.forEach(player => {
+          const playerId = player.player.id;
+          if (!playerScores[playerId]) {
+            playerScores[playerId] = { totalScore: 0, gamesPlayed: 0 };
+          }
+          playerScores[playerId].gamesPlayed++;
+          playerScores[playerId].totalScore += player.scores.reduce((sum, score) => sum + score.score, 0);
+        });
+      });
+    });
+
+    return Object.entries(playerScores).map(([id, stats]) => ({
+      player: { id, name: playerScores[id].name || 'Unknown Player' }, // Assuming name is available in playerScores
+      averageScore: stats.totalScore / stats.gamesPlayed,
+      totalGames: stats.gamesPlayed,
+      gameScores: games.map(game => ({
+        gameName: game.name,
+        totalScore: game.teams.reduce((sum, team) => sum + team.team_players.reduce((teamSum, player) => teamSum + player.scores.reduce((playerSum, score) => playerSum + score.score, 0), 0), 0)
+      }))
+    }));
   };
 
   const downloadExcel = () => {
