@@ -201,11 +201,6 @@ th {
 }
 
 th.active {
-  background-color: var(--primary-color);
-  color: white;
-}
-
-td.active {
   background-color: var(--primary-light);
 }
 
@@ -1018,10 +1013,173 @@ input.score-input:focus {
 }
 
 .scrollable-table td {
-  height: 30px; 
+  height: 40px; 
 }
 
 .scrollable-table input {
-  height: 40px;
-  line-height: 40px;
+  height: 39.7px;
+  line-height: 39px;
+}
+
+/* Stats Table Styles */
+.stats-table-container {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  overflow-x: auto;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+/* Fixed columns styling */
+.stats-table th:nth-child(-n+4),
+.stats-table td:nth-child(-n+4) {
+  position: sticky;
+  background: #f8fafc;
+  z-index: 1;
+}
+
+.stats-table th:nth-child(1),
+.stats-table td:nth-child(1) {
+  left: 0;
+  width: 50px;
+  min-width: 50px;
+  max-width: 50px;
+  text-align: center;
+}
+
+.stats-table th:nth-child(2),
+.stats-table td:nth-child(2) {
+  left: 50px;
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
+}
+
+.stats-table th:nth-child(3),
+.stats-table td:nth-child(3) {
+  left: 150px;
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+}
+
+.stats-table th:nth-child(4),
+.stats-table td:nth-child(4) {
+  left: 230px;
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+}
+
+/* Non-fixed columns */
+.stats-table th:nth-child(n+5),
+.stats-table td:nth-child(n+5) {
+  width: 100px;
+  min-width: 100px;
+}
+
+/* Headers styling */
+.stats-table th {
+  background: #eef2ff;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.stats-table th:nth-child(-n+4) {
+  background: #eef2ff;
+  z-index: 2;
+}
+
+/* Fixed columns borders */
+.stats-table th:nth-child(-n+4),
+.stats-table td:nth-child(-n+4) {
+  border-right: 2px solid #e5e7eb;
+}
+
+/* Hover effects */
+.stats-table tbody tr:hover td {
+  background-color: #f9fafb;
+}
+
+.stats-table tbody tr:hover td:nth-child(-n+4) {
+  background-color: #f3f4f6;
+}
+
+/* N/A styling */
+.stats-table td.na {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.game-date {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-weight: normal;
+}
+
+/* Mobile optimization */
+@media (max-width: 768px) {
+  .stats-table th,
+  .stats-table td {
+    padding: 8px;
+    font-size: 0.9rem;
+  }
+
+  .stats-table th:nth-child(1),
+  .stats-table td:nth-child(1) {
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+  }
+
+  .stats-table th:nth-child(2),
+  .stats-table td:nth-child(2) {
+    left: 40px;
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+  }
+
+  .stats-table th:nth-child(3),
+  .stats-table td:nth-child(3) {
+    left: 120px;
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
+  }
+
+  .stats-table th:nth-child(4),
+  .stats-table td:nth-child(4) {
+    left: 180px;
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
+  }
+
+  .stats-table th:nth-child(n+5),
+  .stats-table td:nth-child(n+5) {
+    width: 80px;
+    min-width: 80px;
+  }
+
+  .game-date {
+    font-size: 0.75rem;
+  }
 }

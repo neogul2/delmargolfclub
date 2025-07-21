@@ -15,12 +15,6 @@ export default function NavBar() {
         🏠 리더보드
       </Link>
       <Link
-        href="/new-game"
-        className={`nav-link ${pathname === '/new-game' ? 'active' : ''}`}
-      >
-        ➕ 새 경기
-      </Link>
-      <Link
         href="/stats"
         className={`nav-link ${pathname === '/stats' ? 'active' : ''}`}
       >

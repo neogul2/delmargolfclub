@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import NavBar from "@/components/NavBar";
-import PasswordModal from "@/components/PasswordModal";
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface PlayerInput {
   name: string;
 }
 
 export default function NewGamePage() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,7 +19,6 @@ export default function NewGamePage() {
   const [success, setSuccess] = useState(false);
   const [teamCount, setTeamCount] = useState(1);
   const [players, setPlayers] = useState<PlayerInput[][]>([Array(4).fill({ name: '' })]);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const handleTeamCountChange = (count: number) => {
     setTeamCount(count);
@@ -48,16 +48,14 @@ export default function NewGamePage() {
     return hasError;
   };
 
-  const handleSubmitClick = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const hasError = validatePlayers();
     if (hasError) return;
-    setShowPasswordModal(true);
-  };
 
-  const handlePasswordConfirm = async () => {
     setLoading(true);
     setError(null);
+
     try {
       // 1. 경기 생성
       const { data: gameData, error: gameError } = await supabase
@@ -117,7 +115,6 @@ export default function NewGamePage() {
         }
       }
       setSuccess(true);
-      setShowPasswordModal(false);
     } catch (error) {
       console.error('Error creating game:', error);
       setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
@@ -143,8 +140,8 @@ export default function NewGamePage() {
           <h2>🎉 경기 생성 완료!</h2>
           <p>새로운 경기가 성공적으로 생성되었습니다.</p>
           <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-            <Link href="/" className="btn btn-secondary">
-              리더보드로 이동
+            <Link href="/admin" className="btn">
+              관리 페이지로 이동
             </Link>
             <button 
               className="btn btn-outline"
@@ -161,7 +158,7 @@ export default function NewGamePage() {
           </div>
         </div>
       ) : (
-        <form onSubmit={handleSubmitClick}>
+        <form onSubmit={handleSubmit}>
           <div className="card">
             <div style={{ marginBottom: '1.5rem' }}>
               <label>
@@ -222,21 +219,16 @@ export default function NewGamePage() {
             </div>
           ))}
 
-          <button type="submit" className="btn" disabled={loading} style={{ width: '100%' }}>
-            {loading ? "생성 중..." : "경기 생성"}
-          </button>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button type="submit" className="btn" disabled={loading} style={{ flex: 1 }}>
+              {loading ? "생성 중..." : "경기 생성"}
+            </button>
+            <Link href="/admin" className="btn btn-outline" style={{ flex: 1 }}>
+              취소
+            </Link>
+          </div>
         </form>
       )}
-
-      <PasswordModal
-        isOpen={showPasswordModal}
-        onClose={() => {
-          setShowPasswordModal(false);
-          setLoading(false);
-        }}
-        onConfirm={handlePasswordConfirm}
-        message="새 경기를 생성하려면 비밀번호를 입력하세요."
-      />
 
       <NavBar />
     </div>

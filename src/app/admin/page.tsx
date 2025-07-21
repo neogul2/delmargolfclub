@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
 import PasswordModal from '@/components/PasswordModal';
+import Link from 'next/link';
 
 interface Game {
   id: string;
@@ -19,6 +20,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | null>(null);
   const [editForm, setEditForm] = useState({ name: '', date: '' });
+  const [error, setError] = useState<string | null>(null);
 
   const fetchGames = useCallback(async () => {
     setLoading(true);
@@ -32,7 +34,7 @@ export default function AdminPage() {
       setGames(data || []);
     } catch (error) {
       console.error('Error fetching games:', error);
-      alert('경기 목록을 불러오는데 실패했습니다.');
+      setError(error instanceof Error ? error.message : '경기 목록을 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -133,16 +135,27 @@ export default function AdminPage() {
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
             <h1 style={{ margin: 0 }}>🔧 경기 관리</h1>
-            <button 
-              className="btn btn-outline" 
-              onClick={() => {
-                setIsAuthenticated(false);
-                window.location.href = '/';
-              }}
-            >
-              로그아웃
-            </button>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <Link href="/new-game" className="btn">
+                ➕ 새 경기 생성
+              </Link>
+              <button
+                className="btn btn-outline"
+                onClick={() => {
+                  setIsAuthenticated(false);
+                  window.location.href = '/';
+                }}
+              >
+                로그아웃
+              </button>
+            </div>
           </div>
+
+          {error && (
+            <div className="card error">
+              <p>{error}</p>
+            </div>
+          )}
 
           {loading ? (
             <div className="card">
