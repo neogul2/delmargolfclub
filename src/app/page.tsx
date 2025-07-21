@@ -48,10 +48,6 @@ interface GamePhoto {
   created_at: string;
 }
 
-interface SupabaseError {
-  message: string;
-}
-
 export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(false);
@@ -165,7 +161,10 @@ export default function Home() {
           `)
           .order('date', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching games:', error);
+          return;
+        }
         
         const gamesWithScores = gamesData as Game[];
         setGames(gamesWithScores);
@@ -174,7 +173,7 @@ export default function Home() {
           setSelectedGame(gamesWithScores[0].id);
         }
       } catch (error) {
-        console.error('Error fetching games:', error);
+        console.error('Error:', error);
       } finally {
         setLoading(false);
       }
@@ -200,11 +199,6 @@ export default function Home() {
         scores: tp.scores
       }))
     );
-  };
-
-  const handleError = (error: Error) => {
-    console.error('Error:', error.message);
-    alert('오류가 발생했습니다. 다시 시도해주세요.');
   };
 
   return (

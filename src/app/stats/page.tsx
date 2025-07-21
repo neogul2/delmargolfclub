@@ -10,14 +10,6 @@ interface Score {
   score: number;
 }
 
-interface TeamPlayer {
-  player: {
-    id: string;
-    name: string;
-  };
-  scores: Score[];
-}
-
 interface PlayerStats {
   player: {
     id: string;
@@ -63,13 +55,16 @@ export default function StatsPage() {
         `)
         .order('date', { ascending: false });
 
-      if (gamesError) throw gamesError;
+      if (gamesError) {
+        console.error('Error fetching games:', gamesError);
+        return;
+      }
 
       // Process the data and calculate stats
-      const processedStats = processGamesData(gamesData || []);
+      const processedStats = calculateStats(gamesData || []);
       setPlayerStats(processedStats);
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Error:', error);
     } finally {
       setLoading(false);
     }
