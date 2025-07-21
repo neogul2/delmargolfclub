@@ -1,20 +1,44 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
 import * as XLSX from 'xlsx';
 
+interface Player {
+  id: string;
+  name: string;
+}
+
+interface Score {
+  score: number;
+  hole_number: number;
+}
+
+interface Game {
+  id: string;
+  name: string;
+  date: string;
+}
+
+interface Team {
+  id: string;
+  name: string;
+  game: Game;
+}
+
+interface TeamPlayer {
+  id: string;
+  player: Player;
+  team: Team;
+  scores: Score[];
+}
+
 interface PlayerStats {
   name: string;
-  avgScore: number;
+  average: number;
   gamesPlayed: number;
-  gameScores: {
-    gameId: string;
-    gameName: string;
-    gameDate: string;
-    score: number | null;
-  }[];
+  gameScores: { [key: string]: { score: number; name: string; date: string } };
 }
 
 export default function StatsPage() {
@@ -28,23 +52,13 @@ export default function StatsPage() {
 
   const fetchStats = async () => {
     try {
-      // 1. 모든 게임 정보 가져오기
-      const { data: games, error: gamesError } = await supabase
-        .from('games')
-        .select('id, name, date')
-        .order('date', { ascending: false });
-
-      if (gamesError) throw gamesError;
-
-      // 2. 모든 플레이어와 점수 정보 가져오기
       const { data: playersData, error: playersError } = await supabase
         .from('team_players')
         .select(`
-          player:players (
-            id,
-            name
-          ),
+          player:players (id, name),
           team:teams (
+            id,
+            name,
             game:games (
               id,
               name,
@@ -52,122 +66,103 @@ export default function StatsPage() {
             )
           ),
           scores (
-            score
+            score,
+            hole_number
           )
         `);
 
       if (playersError) throw playersError;
 
-      // 3. 플레이어별로 데이터 그룹화
-      const playerMap = new Map();
+      const playerStatsMap = new Map<string, PlayerStats>();
 
-      playersData.forEach(tp => {
+      playersData?.forEach((tp: any) => {
         const player = tp.player;
-        const gameId = tp.team.game.id;
-        const gameName = tp.team.game.name;
-        const gameDate = tp.team.game.date;
-        const totalScore = tp.scores.reduce((sum, s) => sum + (s.score || 0), 0);
+        const game = tp.team.game;
+        if (!player || !game) return;
 
-        if (!playerMap.has(player.id)) {
-          playerMap.set(player.id, {
+        const totalScore = tp.scores.reduce((sum: number, s: Score) => sum + (s.score || 0), 0);
+        const completedHoles = tp.scores.filter((s: Score) => s.score !== null).length;
+        
+        // 18홀이 완료된 게임만 포함
+        if (completedHoles !== 18) return;
+
+        if (!playerStatsMap.has(player.name)) {
+          playerStatsMap.set(player.name, {
             name: player.name,
-            gameScores: new Map(),
-            totalScore: 0,
-            gamesPlayed: 0
+            average: 0,
+            gamesPlayed: 0,
+            gameScores: {}
           });
         }
 
-        const playerData = playerMap.get(player.id);
-        playerData.gameScores.set(gameId, {
-          gameId,
-          gameName,
-          gameDate,
-          score: totalScore
-        });
-        playerData.totalScore += totalScore;
-        playerData.gamesPlayed += 1;
+        const playerStats = playerStatsMap.get(player.name)!;
+        playerStats.gameScores[game.id] = {
+          score: totalScore,
+          name: game.name,
+          date: game.date
+        };
+        
+        const totalScores = Object.values(playerStats.gameScores).reduce((sum, g) => sum + g.score, 0);
+        playerStats.gamesPlayed = Object.keys(playerStats.gameScores).length;
+        playerStats.average = totalScores / playerStats.gamesPlayed;
       });
 
-      // 4. 최종 통계 데이터 생성
-      const playerStats: PlayerStats[] = [];
+      const sortedStats = Array.from(playerStatsMap.values())
+        .sort((a, b) => a.average - b.average);
 
-      playerMap.forEach((data, playerId) => {
-        const gameScores = games.map(game => {
-          const score = data.gameScores.get(game.id);
-          return {
-            gameId: game.id,
-            gameName: game.name,
-            gameDate: game.date,
-            score: score ? score.score : null
-          };
-        });
-
-        playerStats.push({
-          name: data.name,
-          avgScore: data.gamesPlayed > 0 ? Number((data.totalScore / data.gamesPlayed).toFixed(1)) : 0,
-          gamesPlayed: data.gamesPlayed,
-          gameScores
-        });
-      });
-
-      // 5. 이름순으로 정렬
-      playerStats.sort((a, b) => a.name.localeCompare(b.name));
-
-      setStats(playerStats);
+      setStats(sortedStats);
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching stats:', error);
       setError(error instanceof Error ? error.message : '통계를 불러오는데 실패했습니다.');
-    } finally {
       setLoading(false);
     }
   };
 
-  const handleDownloadExcel = () => {
-    try {
-      // Excel 데이터 준비
-      const excelData = stats.map(player => {
-        const baseData = {
-          '선수': player.name,
-          '평균 스코어': player.avgScore,
-          '참여 경기 수': player.gamesPlayed,
-        };
+  const downloadExcel = () => {
+    // 데이터 준비
+    const data = stats.map(player => {
+      const row: any = {
+        '선수': player.name,
+        '평균': player.average.toFixed(1),
+        '경기수': player.gamesPlayed,
+      };
 
-        // 각 게임 스코어 추가
-        player.gameScores.forEach(gs => {
-          baseData[`${gs.gameName} (${new Date(gs.gameDate).toLocaleDateString()})`] = 
-            gs.score !== null ? gs.score : 'N/A';
-        });
-
-        return baseData;
+      // 각 게임 스코어 추가
+      Object.values(player.gameScores).forEach(game => {
+        row[`${game.name} (${game.date})`] = game.score;
       });
 
-      // Workbook 생성
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(excelData);
+      return row;
+    });
 
-      // 열 너비 자동 조정
-      const colWidths = {};
-      const maxWidth = 50;
-      
-      XLSX.utils.book_append_sheet(wb, ws, "전체기록");
-      
-      // 파일 저장
-      XLSX.writeFile(wb, "델마골프클럽_전체기록.xlsx");
-    } catch (error) {
-      console.error('Error creating Excel file:', error);
-      alert('Excel 파일 생성 중 오류가 발생했습니다.');
-    }
+    // 워크시트 생성
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "전체기록");
+
+    // 파일 다운로드
+    XLSX.writeFile(wb, "델마 골프클럽 전체기록.xlsx");
   };
 
   if (loading) return <div className="container">로딩 중...</div>;
   if (error) return <div className="container">에러: {error}</div>;
 
+  // 모든 게임 날짜를 수집하고 정렬
+  const allGameDates = new Set<string>();
+  stats.forEach(player => {
+    Object.values(player.gameScores).forEach(game => {
+      allGameDates.add(`${game.name} (${game.date})`);
+    });
+  });
+  const sortedGameDates = Array.from(allGameDates).sort((a, b) => b.localeCompare(a));
+
   return (
     <div className="container page-container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 style={{ margin: 0 }}>📊 전체기록</h1>
-        <button onClick={handleDownloadExcel} className="btn">
-          📥 Excel 다운로드
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h2>전체기록</h2>
+        <button onClick={downloadExcel} className="btn">
+          Excel 다운로드
         </button>
       </div>
 
@@ -176,14 +171,11 @@ export default function StatsPage() {
           <thead>
             <tr>
               <th>#</th>
-              <th className="sticky-header">선수</th>
-              <th className="sticky-header-2">평균</th>
-              <th className="sticky-header-3">경기수</th>
-              {stats[0]?.gameScores.map(game => (
-                <th key={game.gameId}>
-                  {game.gameName}<br />
-                  <span className="game-date">{new Date(game.gameDate).toLocaleDateString()}</span>
-                </th>
+              <th>선수</th>
+              <th>평균</th>
+              <th>경기수</th>
+              {sortedGameDates.map(gameDate => (
+                <th key={gameDate}>{gameDate}</th>
               ))}
             </tr>
           </thead>
@@ -191,20 +183,24 @@ export default function StatsPage() {
             {stats.map((player, index) => (
               <tr key={player.name}>
                 <td>{index + 1}</td>
-                <td className="sticky-col">{player.name}</td>
-                <td className="sticky-col-2 center">{player.avgScore}</td>
-                <td className="sticky-col-3 center">{player.gamesPlayed}</td>
-                {player.gameScores.map(score => (
-                  <td key={score.gameId} className={`center ${score.score === null ? 'na' : ''}`}>
-                    {score.score !== null ? score.score : 'N/A'}
-                  </td>
-                ))}
+                <td>{player.name}</td>
+                <td>{player.average.toFixed(1)}</td>
+                <td>{player.gamesPlayed}</td>
+                {sortedGameDates.map(gameDate => {
+                  const gameScore = Object.values(player.gameScores).find(
+                    game => `${game.name} (${game.date})` === gameDate
+                  );
+                  return (
+                    <td key={gameDate} className={gameScore ? '' : 'na'}>
+                      {gameScore ? gameScore.score : 'N/A'}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
       <NavBar />
     </div>
   );
