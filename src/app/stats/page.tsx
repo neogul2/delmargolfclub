@@ -187,12 +187,9 @@ export default function StatsPage() {
                 <th>플레이어</th>
                 <th>평균 스코어</th>
                 <th>참여 경기 수</th>
-                {playerStats[0]?.gameScores.map(game => (
-                  <th key={game.gameId} style={{ minWidth: '120px' }}>
-                    {game.gameName}<br />
-                    <span style={{ fontSize: '0.8em', color: 'var(--gray)' }}>
-                      {new Date(game.gameDate).toLocaleDateString()}
-                    </span>
+                {playerStats[0]?.gameScores.map((game, index) => (
+                  <th key={`${game.gameName}-${index}`} style={{ minWidth: '120px' }}>
+                    {game.gameName}
                   </th>
                 ))}
               </tr>
@@ -203,8 +200,8 @@ export default function StatsPage() {
                   <td>{player.player.name}</td>
                   <td>{player.averageScore}</td>
                   <td>{player.totalGames}</td>
-                  {player.gameScores.map(game => (
-                    <td key={game.gameId}>{game.totalScore}</td>
+                  {player.gameScores.map((game, index) => (
+                    <td key={`${game.gameName}-${index}`}>{game.totalScore}</td>
                   ))}
                 </tr>
               ))}
