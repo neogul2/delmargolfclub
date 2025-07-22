@@ -36,17 +36,6 @@ interface Game {
   teams: Team[];
 }
 
-interface RawTeamPlayerResponse {
-  player: {
-    id: string;
-    name: string;
-  };
-  scores: {
-    score: number;
-    hole: number;
-  }[];
-}
-
 interface TeamPlayerWithId {
   id: string;
   player: Player;

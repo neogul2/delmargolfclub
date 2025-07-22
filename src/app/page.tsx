@@ -36,29 +36,6 @@ interface GameData {
   teams: Team[];
 }
 
-// Supabase 응답 타입
-interface SupabaseResponse {
-  id: string;
-  name: string;
-  date: string;
-  teams: {
-    id: string;
-    name: string;
-    team_players: {
-      id: string;
-      team_name: string;
-      player: {
-        id: string;
-        name: string;
-      };
-      scores: {
-        hole_number: number;
-        score: number;
-      }[];
-    }[];
-  }[];
-}
-
 interface LeaderboardPlayer {
   id: string;
   name: string;
@@ -90,10 +67,29 @@ interface ScoreStat {
   doubleBogeyCount: number;
 }
 
-// 팀 이름 생성 유틸리티 (new-game/page.tsx와 동일)
-const getTeamNames = (): string[] => ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+interface SupabaseResponse {
+  id: string;
+  name: string;
+  date: string;
+  teams: {
+    id: string;
+    name: string;
+    team_players: {
+      id: string;
+      team_name: string;
+      player: {
+        id: string;
+        name: string;
+      };
+      scores: {
+        hole_number: number;
+        score: number;
+      }[];
+    }[];
+  }[];
+}
 
-// 업다운 게임 점수 계산 함수 추가
+// 업다운 게임 점수 계산 함수
 const calculateUpDownScore = (teamAScores: number[], teamBScores: number[]): { aScore: number, bScore: number } => {
   const validTeamAScores = teamAScores.filter(score => score !== null && score !== undefined);
   const validTeamBScores = teamBScores.filter(score => score !== null && score !== undefined);

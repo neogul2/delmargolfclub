@@ -10,11 +10,6 @@ interface Player {
   name: string;
 }
 
-interface Score {
-  score: number;
-  hole_number: number;
-}
-
 interface Game {
   id: string;
   name: string;
@@ -22,11 +17,18 @@ interface Game {
 }
 
 interface SupabaseResponse {
-  player: Player;
+  player: {
+    id: string;
+    name: string;
+  };
   team: {
     id: string;
     name: string;
-    game: Game;
+    game: {
+      id: string;
+      name: string;
+      date: string;
+    };
   };
   scores: Array<{
     score: number | null;
@@ -38,7 +40,13 @@ interface PlayerStats {
   name: string;
   average: number;
   gamesPlayed: number;
-  gameScores: { [key: string]: { score: number; name: string; date: string } };
+  gameScores: {
+    [key: string]: {
+      score: number;
+      name: string;
+      date: string;
+    };
+  };
 }
 
 export default function StatsPage() {
