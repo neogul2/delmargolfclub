@@ -253,6 +253,10 @@ export default function GamePage() {
     });
   };
 
+  if (loading) {
+    return <div className="container">로딩 중...</div>;
+  }
+
   if (error) return <div className="container">에러: {error}</div>;
   if (!game) return <div className="container">게임을 찾을 수 없습니다.</div>;
 

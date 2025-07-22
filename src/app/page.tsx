@@ -5,7 +5,7 @@ import NavBar from "@/components/NavBar";
 import Image from 'next/image';
 import Link from "next/link";
 
-// 데이터 타입 정의 수정
+// 기본 타입 정의
 interface Player {
   id: string;
   name: string;
@@ -34,6 +34,29 @@ interface GameData {
   name: string;
   date: string;
   teams: Team[];
+}
+
+// Supabase 응답 타입
+interface SupabaseResponse {
+  id: string;
+  name: string;
+  date: string;
+  teams: {
+    id: string;
+    name: string;
+    team_players: {
+      id: string;
+      team_name: string;
+      player: {
+        id: string;
+        name: string;
+      };
+      scores: {
+        hole_number: number;
+        score: number;
+      }[];
+    }[];
+  }[];
 }
 
 interface LeaderboardPlayer {
@@ -96,88 +119,6 @@ const calculateUpDownScore = (teamAScores: number[], teamBScores: number[]): { a
 
   return { aScore, bScore };
 };
-
-interface SupabasePlayer {
-  id: string;
-  name: string;
-}
-
-interface SupabaseScore {
-  hole_number: number;
-  score: number;
-}
-
-interface SupabaseTeamPlayer {
-  id: string;
-  team_name: string;
-  player: SupabasePlayer;
-  scores: SupabaseScore[];
-}
-
-interface SupabaseTeam {
-  id: string;
-  name: string;
-  team_players: SupabaseTeamPlayer[];
-}
-
-interface SupabaseGame {
-  id: string;
-  name: string;
-  date: string;
-  teams: SupabaseTeam[];
-}
-
-interface RawScore {
-  hole_number: number;
-  score: number;
-}
-
-interface RawPlayer {
-  id: string;
-  name: string;
-}
-
-interface RawTeamPlayer {
-  id: string;
-  team_name: string;
-  player: RawPlayer;
-  scores: RawScore[];
-}
-
-interface RawTeam {
-  id: string;
-  name: string;
-  team_players: RawTeamPlayer[];
-}
-
-interface RawGameData {
-  id: string;
-  name: string;
-  date: string;
-  teams: RawTeam[];
-}
-
-interface DatabaseGame {
-  id: any;
-  name: any;
-  date: any;
-  teams: {
-    id: any;
-    name: any;
-    team_players: {
-      id: any;
-      team_name: any;
-      player: {
-        id: any;
-        name: any;
-      };
-      scores: {
-        hole_number: any;
-        score: any;
-      }[];
-    }[];
-  }[];
-}
 
 export default function Home() {
   const [games, setGames] = useState<GameData[]>([]);
@@ -309,7 +250,7 @@ export default function Home() {
         }
 
         // Type assertion and data transformation
-        const transformedGames = ((rawData || []) as unknown as SupabaseGame[]).map(game => ({
+        const transformedGames = ((rawData || []) as unknown as SupabaseResponse[]).map(game => ({
           id: String(game.id),
           name: String(game.name),
           date: String(game.date),
@@ -329,7 +270,7 @@ export default function Home() {
               }))
             }))
           }))
-        })) satisfies GameData[];
+        }));
 
         setGames(transformedGames);
         
