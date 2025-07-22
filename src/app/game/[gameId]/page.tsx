@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
 import Link from 'next/link';
+import { calculateTotal } from '@/lib/utils';
+import React from 'react'; // Added missing import for React
 
 interface Player {
   id: string;
@@ -45,8 +47,11 @@ interface RawTeamPlayerResponse {
   }[];
 }
 
-interface TeamPlayerWithId extends TeamPlayer {
+interface TeamPlayerWithId {
   id: string;
+  player: Player;
+  team_name: string;
+  scores: Score[];
 }
 
 interface TeamWithFullData extends Team {
@@ -56,6 +61,35 @@ interface TeamWithFullData extends Team {
 interface GameWithFullData extends Game {
   teams: TeamWithFullData[];
 }
+
+// 업다운 게임 점수 계산 함수 수정
+const calculateUpDownScore = (teamAScores: number[], teamBScores: number[]): { aScore: number, bScore: number } => {
+  // null이나 undefined 값을 제외한 실제 점수만 사용
+  const validTeamAScores = teamAScores.filter(score => score !== null && score !== undefined);
+  const validTeamBScores = teamBScores.filter(score => score !== null && score !== undefined);
+
+  // 한 팀이라도 점수가 없으면 0 반환
+  if (validTeamAScores.length === 0 || validTeamBScores.length === 0) {
+    return { aScore: 0, bScore: 0 };
+  }
+
+  let aScore = 0;
+  let bScore = 0;
+
+  // 최저점 비교 (낮은 점수가 승리)
+  const minA = Math.min(...validTeamAScores);
+  const minB = Math.min(...validTeamBScores);
+  if (minA < minB) aScore += 1;
+  if (minB < minA) bScore += 1;
+  
+  // 최고점 비교 (낮은 점수가 승리)
+  const maxA = Math.max(...validTeamAScores);
+  const maxB = Math.max(...validTeamBScores);
+  if (maxA < maxB) aScore += 1;
+  if (maxB < maxA) bScore += 1;
+
+  return { aScore, bScore };
+};
 
 export default function GamePage() {
   const params = useParams();
@@ -85,6 +119,7 @@ export default function GamePage() {
             name,
             team_players (
               id,
+              team_name,
               player:players (
                 id,
                 name
@@ -120,8 +155,9 @@ export default function GamePage() {
           id: team.id,
           name: team.name,
           team_players: team.team_players.map(tp => ({
-            id: tp.id, // Keep the team_player id
+            id: tp.id,
             player: tp.player,
+            team_name: tp.team_name, // 여기서 team_name을 제대로 가져오는지 확인
             scores: tp.scores.map(s => ({
               score: s.score,
               hole: s.hole_number
@@ -163,10 +199,47 @@ export default function GamePage() {
     }
   }, [fetchGameData, gameId]);
 
+  const autoSaveScore = async (playerIndex: number, playerScores: number[]) => {
+    if (!game) return;
+    setLoading(true);
+    setError(null);
+    try {
+      // team_player_id 찾기
+      let teamPlayerId = '';
+      let idx = 0;
+      for (const team of game.teams) {
+        for (const tp of team.team_players) {
+          if (idx === playerIndex) {
+            teamPlayerId = tp.id;
+          }
+          idx++;
+        }
+      }
+      if (!teamPlayerId) return;
+      // 기존 점수 삭제
+      await supabase.from('scores').delete().eq('team_player_id', teamPlayerId);
+      // 새 점수 삽입
+      for (let hole = 0; hole < 18; hole++) {
+        const score = playerScores[hole];
+        if (score !== null) {
+          await supabase.from('scores').insert({
+            team_player_id: teamPlayerId,
+            hole_number: hole + 1,
+            score: score
+          });
+        }
+      }
+      await fetchGameData();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleScoreChange = (playerIndex: number, holeIndex: number, value: string) => {
     const parsedValue = value === '' ? null : parseInt(value);
     const newValue = parsedValue === null ? null : Math.max(-4, Math.min(12, parsedValue));
-    
     setScores(prevScores => {
       const newScores = [...prevScores];
       if (!newScores[playerIndex]) {
@@ -174,68 +247,10 @@ export default function GamePage() {
       }
       newScores[playerIndex] = [...newScores[playerIndex]];
       newScores[playerIndex][holeIndex] = newValue;
+      // 자동 저장 호출
+      autoSaveScore(playerIndex, newScores[playerIndex]);
       return newScores;
     });
-  };
-
-  const handleSave = async () => {
-    if (!game) return;
-    
-    setLoading(true);
-    setError(null);
-
-    try {
-      console.log('Saving scores...');
-      let playerIndex = 0;
-      
-      for (const team of game.teams) {
-        for (const tp of team.team_players) {
-          console.log(`Processing player ${tp.player.name} with team_player_id ${tp.id}`);
-          const playerScores = scores[playerIndex] || [];
-
-          // Delete existing scores for this team_player
-          const { error: deleteError } = await supabase
-            .from('scores')
-            .delete()
-            .eq('team_player_id', tp.id);
-
-          if (deleteError) {
-            console.error('Error deleting scores:', deleteError);
-            throw deleteError;
-          }
-
-          // Insert new scores
-          for (let hole = 0; hole < 18; hole++) {
-            const score = playerScores[hole];
-            // Changed condition to explicitly check for null
-            if (score !== null) {
-              console.log(`Saving score ${score} for hole ${hole + 1}`);
-              const { error: insertError } = await supabase
-                .from('scores')
-                .insert({
-                  team_player_id: tp.id,
-                  hole_number: hole + 1,
-                  score: score
-                });
-
-              if (insertError) {
-                console.error('Error inserting score:', insertError);
-                throw insertError;
-              }
-            }
-          }
-          playerIndex++;
-        }
-      }
-
-      console.log('Scores saved successfully');
-      await fetchGameData();
-    } catch (error) {
-      console.error('Error saving scores:', error);
-      setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
-    }
   };
 
   if (error) return <div className="container">에러: {error}</div>;
@@ -249,23 +264,45 @@ export default function GamePage() {
       </div>
 
       <div className="score-container">
+        {/* 기존 점수 테이블 */}
         <div className="score-table-wrapper">
           {/* Fixed Columns with scrollbar container */}
           <div className="fixed-container">
             <table className="fixed-table">
               <thead>
                 <tr>
-                  <th>선수</th>
-                  <th>핸디캡</th>
+                  <th style={{ minWidth: 'fit-content', padding: '8px 12px' }}>선수</th>
+                  <th style={{ minWidth: 'fit-content', padding: '8px 12px' }}>조</th>
+                  <th style={{ minWidth: 'fit-content', padding: '8px 12px' }}>팀</th>
+                  <th style={{ minWidth: 'fit-content', padding: '8px 12px' }}>핸디캡</th>
                 </tr>
               </thead>
               <tbody>
                 {players.map((player, playerIndex) => {
-                  const totalScore = scores[playerIndex]?.reduce((sum, score) => sum + (score ?? 0), 0);
+                  const validScores = scores[playerIndex]
+                    ?.map((score, index) => ({
+                      hole_number: index + 1,
+                      score: score
+                    }))
+                    .filter(s => s.score !== null && s.score !== undefined) || [];
+                  
+                  const totalScore = calculateTotal(validScores);
+                  const teamInfo = game.teams.find(t => 
+                    t.team_players.some(tp => tp.player.id === player.id)
+                  );
+                  // 조 번호 추출
+                  const groupNumber = teamInfo?.name.replace(/[^0-9]/g, '') || '';
+                  // team_name이 실제 A/B 값을 가지고 있음
+                  const playerTeam = teamInfo?.team_players.find(tp => tp.player.id === player.id)?.team_name || '';
+                  
                   return (
                     <tr key={player.id}>
-                      <td>{player.name}</td>
-                      <td>{totalScore}</td>
+                      <td style={{ padding: '8px 12px' }}>{player.name}</td>
+                      <td style={{ padding: '8px 12px' }}>{groupNumber}</td>
+                      <td className={`team-${playerTeam?.toLowerCase()}`} style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                        {playerTeam}
+                      </td>
+                      <td style={{ padding: '8px 12px' }}>{totalScore}</td>
                     </tr>
                   );
                 })}
@@ -279,7 +316,7 @@ export default function GamePage() {
               <thead>
                 <tr>
                   {Array.from({ length: 18 }, (_, i) => (
-                    <th key={i}>{i + 1}번홀</th>
+                    <th key={i} style={{ minWidth: '60px', padding: '8px 4px' }}>{i + 1}번홀</th>
                   ))}
                 </tr>
               </thead>
@@ -289,13 +326,14 @@ export default function GamePage() {
                     {Array.from({ length: 18 }, (_, holeIndex) => {
                       const score = scores[playerIndex]?.[holeIndex];
                       return (
-                        <td key={holeIndex}>
+                        <td key={holeIndex} className={score !== null && score !== undefined ? 'score-filled' : ''} style={{ padding: '4px' }}>
                           <input
                             type="number"
                             value={score !== null && score !== undefined ? score : ''}
                             onChange={(e) => handleScoreChange(playerIndex, holeIndex, e.target.value)}
                             min="-4"
                             max="12"
+                            style={{ width: '100%', textAlign: 'center' }}
                           />
                         </td>
                       );
@@ -306,17 +344,120 @@ export default function GamePage() {
             </table>
           </div>
         </div>
+
+        {/* 업다운 게임 테이블 */}
+        <div style={{ marginTop: '2rem' }}>
+          <h3>업다운 게임 현황</h3>
+          <div className="score-table-wrapper">
+            {/* Fixed Columns */}
+            <div className="fixed-container">
+              <table className="fixed-table">
+                <thead>
+                  <tr>
+                    <th style={{ padding: '8px 12px' }}>조</th>
+                    <th style={{ padding: '8px 12px' }}>팀</th>
+                    <th style={{ padding: '8px 12px' }}>합계</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {game.teams.map(team => {
+                    const groupNumber = team.name.replace(/[^0-9]/g, '');
+                    const firstTeamName = groupNumber === '1' ? 'A' : 'C';
+                    const secondTeamName = groupNumber === '1' ? 'B' : 'D';
+                    
+                    const firstTeamPlayers = team.team_players.filter(tp => tp.team_name === firstTeamName);
+                    const secondTeamPlayers = team.team_players.filter(tp => tp.team_name === secondTeamName);
+
+                    // 각 홀별 점수 계산
+                    const upDownScores = Array.from({ length: 18 }, (_, holeIndex) => {
+                      const firstTeamScores = firstTeamPlayers.map(player => {
+                        const playerIndex = players.findIndex(p => p.id === player.player.id);
+                        return scores[playerIndex]?.[holeIndex];
+                      });
+                      const secondTeamScores = secondTeamPlayers.map(player => {
+                        const playerIndex = players.findIndex(p => p.id === player.player.id);
+                        return scores[playerIndex]?.[holeIndex];
+                      });
+                      
+                      return calculateUpDownScore(firstTeamScores, secondTeamScores);
+                    });
+
+                    const totalFirstScore = upDownScores.reduce((sum, score) => sum + score.aScore, 0);
+                    const totalSecondScore = upDownScores.reduce((sum, score) => sum + score.bScore, 0);
+
+                    return (
+                      <React.Fragment key={team.id}>
+                        <tr>
+                          <td rowSpan={2} style={{ padding: '8px 12px', verticalAlign: 'middle' }}>{groupNumber}</td>
+                          <td className={`team-${firstTeamName.toLowerCase()}`} style={{ padding: '8px 12px' }}>{firstTeamName}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 'bold' }}>{totalFirstScore}</td>
+                        </tr>
+                        <tr>
+                          <td className={`team-${secondTeamName.toLowerCase()}`} style={{ padding: '8px 12px' }}>{secondTeamName}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 'bold' }}>{totalSecondScore}</td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Scrollable Columns */}
+            <div className="scrollable-container">
+              <table className="scrollable-table">
+                <thead>
+                  <tr>
+                    {Array.from({ length: 18 }, (_, i) => (
+                      <th key={i} style={{ padding: '8px 12px', minWidth: '60px' }}>{i + 1}H</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {game.teams.map(team => {
+                    const groupNumber = team.name.replace(/[^0-9]/g, '');
+                    const firstTeamName = groupNumber === '1' ? 'A' : 'C';
+                    const secondTeamName = groupNumber === '1' ? 'B' : 'D';
+                    
+                    const firstTeamPlayers = team.team_players.filter(tp => tp.team_name === firstTeamName);
+                    const secondTeamPlayers = team.team_players.filter(tp => tp.team_name === secondTeamName);
+
+                    const upDownScores = Array.from({ length: 18 }, (_, holeIndex) => {
+                      const firstTeamScores = firstTeamPlayers.map(player => {
+                        const playerIndex = players.findIndex(p => p.id === player.player.id);
+                        return scores[playerIndex]?.[holeIndex];
+                      });
+                      const secondTeamScores = secondTeamPlayers.map(player => {
+                        const playerIndex = players.findIndex(p => p.id === player.player.id);
+                        return scores[playerIndex]?.[holeIndex];
+                      });
+                      
+                      return calculateUpDownScore(firstTeamScores, secondTeamScores);
+                    });
+
+                    return (
+                      <React.Fragment key={team.id}>
+                        <tr>
+                          {upDownScores.map((score, index) => (
+                            <td key={index} style={{ padding: '8px 12px', textAlign: 'center' }}>{score.aScore}</td>
+                          ))}
+                        </tr>
+                        <tr>
+                          {upDownScores.map((score, index) => (
+                            <td key={index} style={{ padding: '8px 12px', textAlign: 'center' }}>{score.bScore}</td>
+                          ))}
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
-        <button
-          className="btn"
-          onClick={handleSave}
-          disabled={loading}
-          style={{ flex: 1 }}
-        >
-          {loading ? "저장 중..." : "저장"}
-        </button>
         <Link href="/" className="btn btn-outline" style={{ flex: 1 }}>
           리더보드
         </Link>

@@ -1,234 +1,230 @@
 "use client";
 
-import { useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import NavBar from "@/components/NavBar";
-import Link from 'next/link';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
+import NavBar from '@/components/NavBar';
 
-interface PlayerInput {
+// 팀 이름 생성 유틸리티
+const getTeamName = (teamIndex: number): string => {
+  const teamNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+  return teamNames[teamIndex];
+};
+
+interface TeamPlayer {
   name: string;
+  team: string;  // 'A' | 'B' | 'C' | 'D' | ... 형식으로 변경
 }
 
 export default function NewGamePage() {
+  const [gameName, setGameName] = useState('');
+  const [gameDate, setGameDate] = useState('');
+  const [teamCount, setTeamCount] = useState(2);
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [date, setDate] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [teamCount, setTeamCount] = useState(1);
-  const [players, setPlayers] = useState<PlayerInput[][]>([Array(4).fill({ name: '' })]);
 
-  const handleTeamCountChange = (count: number) => {
-    setTeamCount(count);
-    setPlayers(Array.from({ length: count }, () => Array(4).fill({ name: "" })));
-  };
+  // 각 조별 플레이어 상태 관리
+  const [players, setPlayers] = useState<TeamPlayer[][]>(() => 
+    Array(teamCount).fill(null).map((_, groupIndex) => [
+      { name: '', team: getTeamName(groupIndex * 2) },     // 첫 번째 플레이어 (첫 번째 팀)
+      { name: '', team: getTeamName(groupIndex * 2) },     // 두 번째 플레이어 (첫 번째 팀)
+      { name: '', team: getTeamName(groupIndex * 2 + 1) }, // 세 번째 플레이어 (두 번째 팀)
+      { name: '', team: getTeamName(groupIndex * 2 + 1) }  // 네 번째 플레이어 (두 번째 팀)
+    ])
+  );
 
-  const handlePlayerChange = (teamIdx: number, playerIdx: number, value: string) => {
-    setPlayers((prev) => {
-      const copy = prev.map(team => team.map(player => ({...player})));
-      copy[teamIdx][playerIdx] = { name: value };
-      return copy;
+  // 조 수가 변경될 때 플레이어 배열 업데이트
+  const handleTeamCountChange = (value: string) => {
+    const newCount = Math.max(1, Math.min(10, parseInt(value) || 1)); // 1-10조 제한
+    setTeamCount(newCount);
+    
+    setPlayers(prev => {
+      const newPlayers = Array(newCount).fill(null).map((_, groupIndex) => {
+        // 기존 조의 데이터는 유지
+        if (groupIndex < prev.length) return prev[groupIndex];
+        // 새로운 조는 빈 데이터로 초기화
+        return [
+          { name: '', team: getTeamName(groupIndex * 2) },     // 첫 번째 플레이어 (첫 번째 팀)
+          { name: '', team: getTeamName(groupIndex * 2) },     // 두 번째 플레이어 (첫 번째 팀)
+          { name: '', team: getTeamName(groupIndex * 2 + 1) }, // 세 번째 플레이어 (두 번째 팀)
+          { name: '', team: getTeamName(groupIndex * 2 + 1) }  // 네 번째 플레이어 (두 번째 팀)
+        ];
+      });
+      return newPlayers;
     });
   };
 
-  const validatePlayers = () => {
-    let hasError = false;
-    for (let i = 0; i < teamCount; i++) {
-      for (let j = 0; j < 4; j++) {
-        if (!players[i][j].name.trim()) {
-          setError(`팀 ${i + 1}의 플레이어 ${j + 1} 이름을 입력해주세요.`);
-          hasError = true;
-          break;
-        }
-      }
-      if (hasError) break;
-    }
-    return hasError;
+  const handlePlayerChange = (teamIndex: number, playerIndex: number, value: string) => {
+    setPlayers(prev => {
+      const newPlayers = [...prev];
+      newPlayers[teamIndex] = [...newPlayers[teamIndex]];
+      newPlayers[teamIndex][playerIndex] = {
+        ...newPlayers[teamIndex][playerIndex],
+        name: value
+      };
+      return newPlayers;
+    });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const hasError = validatePlayers();
-    if (hasError) return;
-
-    setLoading(true);
-    setError(null);
-
+  const handleSubmit = async () => {
     try {
-      // 1. 경기 생성
+      // 1. 게임 생성
       const { data: gameData, error: gameError } = await supabase
         .from('games')
-        .insert([{ name, date }])
+        .insert([
+          {
+            name: gameName,
+            date: gameDate
+          }
+        ])
         .select()
         .single();
 
       if (gameError) throw gameError;
 
-      // 2. 팀 생성
-      for (let i = 0; i < teamCount; i++) {
+      // 2. 각 조별로 처리
+      for (let teamIndex = 0; teamIndex < players.length; teamIndex++) {
+        // 조 생성
         const { data: teamData, error: teamError } = await supabase
           .from('teams')
-          .insert([{ name: `${i + 1}조`, game_id: gameData.id }])
+          .insert([
+            {
+              name: `${teamIndex + 1}조`,
+              game_id: gameData.id
+            }
+          ])
           .select()
           .single();
 
         if (teamError) throw teamError;
 
-        // 3. 각 팀의 플레이어 생성
-        for (let j = 0; j < 4; j++) {
-          const playerName = players[i][j].name.trim();
-          if (!playerName) continue;
+        // 해당 조의 플레이어들 처리
+        for (const player of players[teamIndex]) {
+          if (!player.name.trim()) continue;
 
-          // 3.1 플레이어 생성 또는 조회
-          const { data: existingPlayer, error: playerError } = await supabase
+          // 플레이어 생성 또는 조회
+          let playerData;
+          const { data: existingPlayer, error: findError } = await supabase
             .from('players')
             .select()
-            .eq('name', playerName)
+            .eq('name', player.name)
             .single();
 
-          let playerId;
-          if (playerError) {
+          if (findError) {
             // 플레이어가 없으면 새로 생성
             const { data: newPlayer, error: createError } = await supabase
               .from('players')
-              .insert([{ name: playerName }])
+              .insert([{ name: player.name }])
               .select()
               .single();
 
             if (createError) throw createError;
-            playerId = newPlayer.id;
+            playerData = newPlayer;
           } else {
-            playerId = existingPlayer.id;
+            playerData = existingPlayer;
           }
 
-          // 3.2 team_players 테이블에 연결 정보 저장
-          const { error: linkError } = await supabase
+          // 팀 플레이어 연결 (team 정보 포함)
+          const { error: teamPlayerError } = await supabase
             .from('team_players')
-            .insert([{
-              team_id: teamData.id,
-              player_id: playerId
-            }]);
+            .insert([
+              {
+                team_id: teamData.id,
+                player_id: playerData.id,
+                team_name: player.team // team 정보를 team_players 테이블에 저장
+              }
+            ]);
 
-          if (linkError) throw linkError;
+          if (teamPlayerError) throw teamPlayerError;
         }
       }
-      setSuccess(true);
+
+      // 성공 시 리더보드로 이동
+      router.push('/');
     } catch (error) {
       console.error('Error creating game:', error);
-      setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
+      alert('게임 생성 중 오류가 발생했습니다.');
     }
   };
 
   return (
     <div className="container page-container">
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 style={{ margin: 0 }}>새 경기 생성</h1>
+      <h1>새 경기 생성</h1>
+
+      <div className="card">
+        <div>
+          <label>경기명</label>
+          <input
+            type="text"
+            className="input"
+            placeholder="예: 7월 정기 라운드"
+            value={gameName}
+            onChange={(e) => setGameName(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label>날짜</label>
+          <input
+            type="date"
+            className="input"
+            value={gameDate}
+            onChange={(e) => setGameDate(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label>조 수</label>
+          <input
+            type="number"
+            className="input"
+            min="1"
+            max="5" // 최대 5조(10팀)까지 제한
+            value={teamCount}
+            onChange={(e) => handleTeamCountChange(e.target.value)}
+          />
+        </div>
+
+        {/* 각 조별 플레이어 입력 */}
+        {players.map((teamPlayers, teamIndex) => (
+          <div key={teamIndex}>
+            <h3>{teamIndex + 1}조</h3>
+            {teamPlayers.map((player, playerIndex) => (
+              <div key={playerIndex}>
+                <label>
+                  플레이어 {playerIndex + 1}{' '}
+                  <span className={`team-${player.team.toLowerCase()}`}>
+                    ({player.team}팀)
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder={`플레이어 ${playerIndex + 1} 이름`}
+                  value={player.name}
+                  onChange={(e) => handlePlayerChange(teamIndex, playerIndex, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+        ))}
+
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+          <button
+            className="btn"
+            style={{ flex: 1 }}
+            onClick={handleSubmit}
+          >
+            경기 생성
+          </button>
+          <button
+            className="btn btn-outline"
+            style={{ flex: 1 }}
+            onClick={() => router.push('/')}
+          >
+            취소
+          </button>
+        </div>
       </div>
-
-      {error && (
-        <div className="card error">
-          <p>{error}</p>
-        </div>
-      )}
-
-      {success ? (
-        <div className="card success">
-          <h2>🎉 경기 생성 완료!</h2>
-          <p>새로운 경기가 성공적으로 생성되었습니다.</p>
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-            <Link href="/admin" className="btn">
-              관리 페이지로 이동
-            </Link>
-            <button 
-              className="btn btn-outline"
-              onClick={() => {
-                setSuccess(false);
-                setName("");
-                setDate("");
-                setTeamCount(1);
-                setPlayers([Array(4).fill({ name: "" })]);
-              }}
-            >
-              새 경기 추가
-            </button>
-          </div>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit}>
-          <div className="card">
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label>
-                <div style={{ marginBottom: '0.5rem' }}>경기명</div>
-                <input
-                  className="input"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="예: 7월 정기 라운드"
-                  required
-                />
-              </label>
-            </div>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label>
-                <div style={{ marginBottom: '0.5rem' }}>날짜</div>
-                <input
-                  className="input"
-                  type="date"
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                  required
-                />
-              </label>
-            </div>
-
-            <div>
-              <label>
-                <div style={{ marginBottom: '0.5rem' }}>조 수</div>
-                <input
-                  className="input"
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={teamCount}
-                  onChange={e => handleTeamCountChange(Number(e.target.value))}
-                  required
-                />
-              </label>
-            </div>
-          </div>
-
-          {Array.from({ length: teamCount }).map((_, i) => (
-            <div key={i} className="card">
-              <h3 style={{ marginBottom: '1rem' }}>{i + 1}조</h3>
-              {Array.from({ length: 4 }).map((_, j) => (
-                <div key={j} style={{ marginBottom: '1rem' }}>
-                  <div style={{ marginBottom: '0.5rem' }}>플레이어 {j + 1}</div>
-                  <input
-                    className="input"
-                    value={players[i][j].name}
-                    onChange={e => handlePlayerChange(i, j, e.target.value)}
-                    placeholder={`플레이어 ${j + 1} 이름`}
-                  />
-                </div>
-              ))}
-            </div>
-          ))}
-
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button type="submit" className="btn" disabled={loading} style={{ flex: 1 }}>
-              {loading ? "생성 중..." : "경기 생성"}
-            </button>
-            <Link href="/admin" className="btn btn-outline" style={{ flex: 1 }}>
-              취소
-            </Link>
-          </div>
-        </form>
-      )}
 
       <NavBar />
     </div>

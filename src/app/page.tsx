@@ -16,6 +16,7 @@ interface TeamPlayer {
     id: string;
     name: string;
   };
+  team_name: string;
   scores: Score[];
 }
 
@@ -35,11 +36,9 @@ interface Game {
 interface LeaderboardPlayer {
   id: string;
   name: string;
-  teamName: string;
-  scores: {
-    hole_number: number;
-    score: number;
-  }[];
+  teamName: string;  // 1조, 2조 등
+  team: string;      // A팀, B팀 등
+  scores: Score[];
 }
 
 interface GamePhoto {
@@ -58,6 +57,7 @@ interface GameData {
     name: string;
     team_players: {
       id: string;
+      team_name: string; // Added team_name
       player: {
         id: string;
         name: string;
@@ -69,6 +69,52 @@ interface GameData {
     }[];
   }[];
 }
+
+interface ScoreStat {
+  name: string;
+  albatross: number[];  // -3 이하
+  eagles: number[];     // -2
+  birdies: number[];    // -1
+  pars: number[];       // 0
+  bogeys: number[];     // +1
+  doubleBogeys: number[]; // +2 이상
+  albatrossCount: number;
+  eagleCount: number;
+  birdieCount: number;
+  parCount: number;
+  bogeyCount: number;
+  doubleBogeyCount: number;
+}
+
+// 팀 이름 생성 유틸리티 (new-game/page.tsx와 동일)
+const getTeamNames = (): string[] => ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+
+// 업다운 게임 점수 계산 함수 추가
+const calculateUpDownScore = (teamAScores: number[], teamBScores: number[]): { aScore: number, bScore: number } => {
+  const validTeamAScores = teamAScores.filter(score => score !== null && score !== undefined);
+  const validTeamBScores = teamBScores.filter(score => score !== null && score !== undefined);
+
+  if (validTeamAScores.length === 0 || validTeamBScores.length === 0) {
+    return { aScore: 0, bScore: 0 };
+  }
+
+  let aScore = 0;
+  let bScore = 0;
+
+  // 최저점 비교 (낮은 점수가 승리)
+  const minA = Math.min(...validTeamAScores);
+  const minB = Math.min(...validTeamBScores);
+  if (minA < minB) aScore += 1;
+  if (minB < minA) bScore += 1;
+  
+  // 최고점 비교 (낮은 점수가 승리)
+  const maxA = Math.max(...validTeamAScores);
+  const maxB = Math.max(...validTeamBScores);
+  if (maxA < maxB) aScore += 1;
+  if (maxB < maxA) bScore += 1;
+
+  return { aScore, bScore };
+};
 
 export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
@@ -180,11 +226,12 @@ export default function Home() {
               name,
               team_players (
                 id,
+                team_name,
                 player:players (
                   id,
                   name
                 ),
-                scores (
+                scores!inner (
                   hole_number,
                   score
                 )
@@ -228,13 +275,83 @@ export default function Home() {
 
   const getAllPlayers = (game: Game): LeaderboardPlayer[] => {
     return game.teams.flatMap(team => 
-      team.team_players.map(tp => ({
-        id: tp.player.id,
-        name: tp.player.name,
-        teamName: team.name,
-        scores: tp.scores
-      }))
+      team.team_players.map(tp => {
+        // 점수 배열 생성 (18홀)
+        const scoreArray = Array(18).fill(null);
+        // 기존 점수 입력
+        tp.scores.forEach(s => {
+          if (s.hole_number >= 1 && s.hole_number <= 18) {
+            scoreArray[s.hole_number - 1] = s.score;
+          }
+        });
+        // 실제 입력된 점수만 필터링
+        const validScores = scoreArray
+          .map((score, index) => ({
+            hole_number: index + 1,
+            score: score
+          }))
+          .filter(s => s.score !== null && s.score !== undefined);
+
+        return {
+          id: tp.player.id,
+          name: tp.player.name,
+          teamName: team.name,
+          team: tp.team_name || '',
+          scores: validScores
+        };
+      })
     );
+  };
+
+  const getScoreStats = (players: LeaderboardPlayer[]): ScoreStat[] => {
+    return players.map(player => {
+      // 각 홀별로 가장 최근의 스코어만 사용
+      const latestScores = player.scores.reduce((acc, curr) => {
+        acc[curr.hole_number] = curr.score;
+        return acc;
+      }, {} as { [key: number]: number });
+
+      // 스코어별로 홀 분류
+      const albatross = Object.entries(latestScores)
+        .filter(([_, score]) => score <= -3)
+        .map(([hole]) => parseInt(hole));
+      
+      const eagles = Object.entries(latestScores)
+        .filter(([_, score]) => score === -2)
+        .map(([hole]) => parseInt(hole));
+      
+      const birdies = Object.entries(latestScores)
+        .filter(([_, score]) => score === -1)
+        .map(([hole]) => parseInt(hole));
+      
+      const pars = Object.entries(latestScores)
+        .filter(([_, score]) => score === 0)
+        .map(([hole]) => parseInt(hole));
+      
+      const bogeys = Object.entries(latestScores)
+        .filter(([_, score]) => score === 1)
+        .map(([hole]) => parseInt(hole));
+      
+      const doubleBogeys = Object.entries(latestScores)
+        .filter(([_, score]) => score >= 2)
+        .map(([hole]) => parseInt(hole));
+
+      return {
+        name: player.name,
+        albatross,
+        eagles,
+        birdies,
+        pars,
+        bogeys,
+        doubleBogeys,
+        albatrossCount: albatross.length,
+        eagleCount: eagles.length,
+        birdieCount: birdies.length,
+        parCount: pars.length,
+        bogeyCount: bogeys.length,
+        doubleBogeyCount: doubleBogeys.length
+      };
+    });
   };
 
   return (
@@ -309,12 +426,83 @@ export default function Home() {
                   점수입력
                 </Link>
               </div>
+
+              {/* 팀 점수 표시 */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h3>팀 점수</h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>팀</th>
+                      <th>선수</th>
+                      <th>총점</th>
+                      <th>업다운</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from(new Set(getAllPlayers(games.find(g => g.id === selectedGame)!).map(p => p.team)))
+                      .sort()
+                      .map(teamName => {
+                        const game = games.find(g => g.id === selectedGame)!;
+                        const team = game.teams.find(t => 
+                          t.team_players.some(tp => tp.team_name === teamName)
+                        );
+                        
+                        // 팀 플레이어와 점수 정보
+                        const teamPlayers = getAllPlayers(game).filter(p => p.team === teamName);
+                        const playerNames = teamPlayers.map(p => p.name).join(', ');
+                        const teamTotal = teamPlayers.reduce((sum, p) => sum + calculateTotal(p.scores), 0);
+
+                        // 업다운 점수 계산
+                        let upDownTotal = 0;
+                        if (team) {
+                          const groupNumber = team.name.replace(/[^0-9]/g, '');
+                          const oppositeTeamName = teamName === 'A' ? 'B' : 
+                                                 teamName === 'B' ? 'A' :
+                                                 teamName === 'C' ? 'D' : 'C';
+
+                          // 각 홀별로 점수 계산
+                          for (let hole = 0; hole < 18; hole++) {
+                            const teamScores = team.team_players
+                              .filter(tp => tp.team_name === teamName)
+                              .map(tp => tp.scores.find(s => s.hole_number === hole + 1)?.score)
+                              .filter(score => score !== null && score !== undefined) as number[];
+
+                            const oppositeTeamScores = team.team_players
+                              .filter(tp => tp.team_name === oppositeTeamName)
+                              .map(tp => tp.scores.find(s => s.hole_number === hole + 1)?.score)
+                              .filter(score => score !== null && score !== undefined) as number[];
+
+                            if (teamName === 'A' || teamName === 'C') {
+                              upDownTotal += calculateUpDownScore(teamScores, oppositeTeamScores).aScore;
+                            } else {
+                              upDownTotal += calculateUpDownScore(oppositeTeamScores, teamScores).bScore;
+                            }
+                          }
+                        }
+                        
+                        return (
+                          <tr key={teamName}>
+                            <td className={`team-${teamName.toLowerCase()}`}>{teamName}</td>
+                            <td>{playerNames}</td>
+                            <td>{teamTotal}</td>
+                            <td>{upDownTotal}</td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 개인 점수 표시 */}
+              <h3>개인 점수</h3>
               <table>
                 <thead>
                   <tr>
                     <th>순위</th>
                     <th>플레이어</th>
                     <th>조</th>
+                    <th>팀</th>
                     <th>Through</th>
                     <th>핸디캡</th>
                   </tr>
@@ -322,24 +510,108 @@ export default function Home() {
                 <tbody>
                   {getAllPlayers(games.find(g => g.id === selectedGame)!)
                     .sort((a, b) => calculateTotal(a.scores) - calculateTotal(b.scores))
-                    .map((player, index) => (
-                      <tr key={player.id}>
-                        <td>{index + 1}</td>
-                        <td>{player.name}</td>
-                        <td>{player.teamName}</td>
-                        <td>{getCompletedHoles(player.scores)}</td>
-                        <td className="handicap-score">
-                          {calculateTotal(player.scores)}
-                        </td>
-                      </tr>
-                    ))}
+                    .map((player, index) => {
+                      const groupNumber = player.teamName.replace(/[^0-9]/g, '');
+                      return (
+                        <tr key={player.id}>
+                          <td>{index + 1}</td>
+                          <td>{player.name}</td>
+                          <td>{groupNumber}</td>
+                          <td className={`team-${player.team.toLowerCase()}`}>{player.team}</td>
+                          <td>{getCompletedHoles(player.scores)}</td>
+                          <td className="handicap-score">
+                            {calculateTotal(player.scores)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
+
+              {/* 스코어 현황 요약 */}
+              <div style={{ 
+                marginTop: '2rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                fontSize: '0.9rem',
+                color: '#4a5568'
+              }}>
+                {(() => {
+                  const stats = getScoreStats(getAllPlayers(games.find(g => g.id === selectedGame)!));
+                  
+                  // 각 타입별로 플레이어 정보를 객체로 변환하고 개수로 정렬
+                  const formatSummary = (players: { name: string; count: number; holes: number[] }[]): string => {
+                    return players
+                      .sort((a, b) => b.count - a.count)
+                      .map(p => `${p.name} ${p.count}개 (Hole ${p.holes.join(', ')})`)
+                      .join(', ');
+                  };
+
+                  const summaries = {
+                    albatross: stats
+                      .filter(s => s.albatrossCount > 0)
+                      .map(s => ({ 
+                        name: s.name, 
+                        count: s.albatrossCount, 
+                        holes: s.albatross 
+                      })),
+                    eagle: stats
+                      .filter(s => s.eagleCount > 0)
+                      .map(s => ({ 
+                        name: s.name, 
+                        count: s.eagleCount, 
+                        holes: s.eagles 
+                      })),
+                    birdie: stats
+                      .filter(s => s.birdieCount > 0)
+                      .map(s => ({ 
+                        name: s.name, 
+                        count: s.birdieCount, 
+                        holes: s.birdies 
+                      })),
+                    par: stats
+                      .filter(s => s.parCount > 0)
+                      .map(s => ({ 
+                        name: s.name, 
+                        count: s.parCount, 
+                        holes: s.pars 
+                      })),
+                    bogey: stats
+                      .filter(s => s.bogeyCount > 0)
+                      .map(s => ({ 
+                        name: s.name, 
+                        count: s.bogeyCount, 
+                        holes: s.bogeys 
+                      }))
+                  };
+
+                  return (
+                    <>
+                      {summaries.albatross.length > 0 && (
+                        <div>알바트로스: {formatSummary(summaries.albatross)}</div>
+                      )}
+                      {summaries.eagle.length > 0 && (
+                        <div>이글: {formatSummary(summaries.eagle)}</div>
+                      )}
+                      {summaries.birdie.length > 0 && (
+                        <div>버디: {formatSummary(summaries.birdie)}</div>
+                      )}
+                      {summaries.par.length > 0 && (
+                        <div>파: {formatSummary(summaries.par)}</div>
+                      )}
+                      {summaries.bogey.length > 0 && (
+                        <div>보기: {formatSummary(summaries.bogey)}</div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
             </div>
           )}
         </div>
       )}
-
+      
       <NavBar />
     </div>
   );

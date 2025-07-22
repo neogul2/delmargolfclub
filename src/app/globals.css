@@ -756,19 +756,18 @@ input.score-input:focus {
 }
 
 .score-table-wrapper {
-  display: flex;
-  position: relative;
   width: 100%;
+  overflow-x: auto;
+  display: flex;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
 }
 
 /* Fixed columns container */
 .fixed-container {
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  background: white;
+  flex: 0 0 auto;
   border-right: 2px solid #e5e7eb;
-  padding-bottom: 8px; /* Add padding to match scrollbar height */
 }
 
 /* Fixed table styles */
@@ -807,9 +806,8 @@ input.score-input:focus {
 
 /* Scrollable table styles */
 .scrollable-container {
+  flex: 1 1 auto;
   overflow-x: auto;
-  margin-left: -2px;
-  flex: 1;
 }
 
 .scrollable-table {
@@ -915,7 +913,7 @@ input.score-input:focus {
   .scrollable-table th,
   .scrollable-table td {
     min-width: 36px;
-    height: 28px;
+    height: 25px;
     font-size: 13px;
   }
 
@@ -1182,4 +1180,88 @@ input.score-input:focus {
   .game-date {
     font-size: 0.75rem;
   }
+}
+
+/* 점수 입력된 셀 파스텔 배경 */
+.score-filled {
+  background-color: #f0fdf4;
+}
+
+.score-filled input {
+  background-color: #f0fdf4;
+}
+
+input[type="number"] {
+  border: none;
+  padding: 4px;
+  width: 100%;
+  text-align: center;
+  font-size: 14px;
+}
+
+input[type="number"]:focus {
+  outline: 2px solid #3b82f6;
+  border-radius: 4px;
+}
+
+/* Remove spinner buttons from number input */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* 팀 색상 */
+.team-a {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.team-b {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.team-c {
+  color: #059669;
+  font-weight: 600;
+}
+
+.team-d {
+  color: #7c3aed;
+  font-weight: 600;
+}
+
+.team-e {
+  color: #ea580c; /* 주황색 */
+  font-weight: 500;
+}
+
+.team-f {
+  color: #0891b2; /* 청록색 */
+  font-weight: 500;
+}
+
+.team-g {
+  color: #be123c; /* 진한 빨간색 */
+  font-weight: 500;
+}
+
+.team-h {
+  color: #1d4ed8; /* 진한 파란색 */
+  font-weight: 500;
+}
+
+.team-i {
+  color: #15803d; /* 진한 초록색 */
+  font-weight: 500;
+}
+
+.team-j {
+  color: #6d28d9; /* 진한 보라색 */
+  font-weight: 500;
 }
