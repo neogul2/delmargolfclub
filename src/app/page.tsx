@@ -157,6 +157,28 @@ interface RawGameData {
   teams: RawTeam[];
 }
 
+interface DatabaseGame {
+  id: any;
+  name: any;
+  date: any;
+  teams: {
+    id: any;
+    name: any;
+    team_players: {
+      id: any;
+      team_name: any;
+      player: {
+        id: any;
+        name: any;
+      };
+      scores: {
+        hole_number: any;
+        score: any;
+      }[];
+    }[];
+  }[];
+}
+
 export default function Home() {
   const [games, setGames] = useState<GameData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -287,28 +309,27 @@ export default function Home() {
         }
 
         // Type assertion and data transformation
-        const rawGames = rawData as unknown as RawGameData[];
-        const transformedGames: GameData[] = rawGames.map(game => ({
-          id: game.id,
-          name: game.name,
-          date: game.date,
-          teams: game.teams.map(team => ({
-            id: team.id,
-            name: team.name,
-            team_players: team.team_players.map(tp => ({
-              id: tp.id,
-              team_name: tp.team_name,
+        const transformedGames = ((rawData || []) as any[]).map(game => ({
+          id: String(game.id),
+          name: String(game.name),
+          date: String(game.date),
+          teams: ((game.teams || []) as any[]).map(team => ({
+            id: String(team.id),
+            name: String(team.name),
+            team_players: ((team.team_players || []) as any[]).map(tp => ({
+              id: String(tp.id),
+              team_name: String(tp.team_name),
               player: {
-                id: tp.player.id,
-                name: tp.player.name
+                id: String(tp.player.id),
+                name: String(tp.player.name)
               },
-              scores: tp.scores.map(s => ({
-                hole_number: s.hole_number,
-                score: s.score
+              scores: ((tp.scores || []) as any[]).map(s => ({
+                hole_number: Number(s.hole_number),
+                score: Number(s.score)
               }))
             }))
           }))
-        }));
+        })) satisfies GameData[];
 
         setGames(transformedGames);
         
