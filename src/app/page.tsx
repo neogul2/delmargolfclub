@@ -309,21 +309,21 @@ export default function Home() {
         }
 
         // Type assertion and data transformation
-        const transformedGames = ((rawData || []) as any[]).map(game => ({
+        const transformedGames = ((rawData || []) as unknown as SupabaseGame[]).map(game => ({
           id: String(game.id),
           name: String(game.name),
           date: String(game.date),
-          teams: ((game.teams || []) as any[]).map(team => ({
+          teams: game.teams.map(team => ({
             id: String(team.id),
             name: String(team.name),
-            team_players: ((team.team_players || []) as any[]).map(tp => ({
+            team_players: team.team_players.map(tp => ({
               id: String(tp.id),
               team_name: String(tp.team_name),
               player: {
                 id: String(tp.player.id),
                 name: String(tp.player.name)
               },
-              scores: ((tp.scores || []) as any[]).map(s => ({
+              scores: tp.scores.map(s => ({
                 hole_number: Number(s.hole_number),
                 score: Number(s.score)
               }))
