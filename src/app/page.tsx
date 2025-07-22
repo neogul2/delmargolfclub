@@ -33,7 +33,22 @@ interface GameData {
   id: string;
   name: string;
   date: string;
-  teams: Team[];
+  teams: {
+    id: string;
+    name: string;
+    team_players: {
+      id: string;
+      team_name: string;
+      player: {
+        id: string;
+        name: string;
+      };
+      scores: {
+        hole_number: number;
+        score: number;
+      }[];
+    }[];
+  }[];
 }
 
 interface LeaderboardPlayer {
@@ -128,6 +143,28 @@ interface SupabaseGame {
 }
 
 interface RawGameData {
+  id: string;
+  name: string;
+  date: string;
+  teams: {
+    id: string;
+    name: string;
+    team_players: {
+      id: string;
+      team_name: string;
+      player: {
+        id: string;
+        name: string;
+      };
+      scores: {
+        hole_number: number;
+        score: number;
+      }[];
+    }[];
+  }[];
+}
+
+interface SupabaseResponse {
   id: string;
   name: string;
   date: string;
@@ -278,8 +315,8 @@ export default function Home() {
           return;
         }
 
-        const rawGames = (gamesData as unknown) as RawGameData[];
-        const gamesWithScores = rawGames.map(game => ({
+        // Transform the data to match our GameData interface
+        const transformedGames = ((gamesData || []) as unknown as SupabaseResponse[]).map(game => ({
           id: game.id,
           name: game.name,
           date: game.date,
@@ -295,10 +332,10 @@ export default function Home() {
           }))
         }));
 
-        setGames(gamesWithScores);
+        setGames(transformedGames);
         
-        if (gamesWithScores.length > 0) {
-          setSelectedGame(gamesWithScores[0].id);
+        if (transformedGames.length > 0) {
+          setSelectedGame(transformedGames[0].id);
         }
       } catch (error) {
         if (error instanceof Error) {
