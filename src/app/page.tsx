@@ -5,6 +5,12 @@ import NavBar from "@/components/NavBar";
 import Image from 'next/image';
 import Link from "next/link";
 
+// 데이터 타입 정의 수정
+interface Player {
+  id: string;
+  name: string;
+}
+
 interface Score {
   hole_number: number;
   score: number;
@@ -12,11 +18,8 @@ interface Score {
 
 interface TeamPlayer {
   id: string;
-  player: {
-    id: string;
-    name: string;
-  };
   team_name: string;
+  player: Player;
   scores: Score[];
 }
 
@@ -26,7 +29,7 @@ interface Team {
   team_players: TeamPlayer[];
 }
 
-interface Game {
+interface GameData {
   id: string;
   name: string;
   date: string;
@@ -46,28 +49,6 @@ interface GamePhoto {
   game_id: string;
   photo_url: string;
   created_at: string;
-}
-
-interface GameData {
-  id: string;
-  name: string;
-  date: string;
-  teams: {
-    id: string;
-    name: string;
-    team_players: {
-      id: string;
-      team_name: string; // Added team_name
-      player: {
-        id: string;
-        name: string;
-      };
-      scores: {
-        hole_number: number;
-        score: number;
-      }[];
-    }[];
-  }[];
 }
 
 interface ScoreStat {
@@ -116,8 +97,38 @@ const calculateUpDownScore = (teamAScores: number[], teamBScores: number[]): { a
   return { aScore, bScore };
 };
 
+interface SupabasePlayer {
+  id: string;
+  name: string;
+}
+
+interface SupabaseScore {
+  hole_number: number;
+  score: number;
+}
+
+interface SupabaseTeamPlayer {
+  id: string;
+  team_name: string;
+  player: SupabasePlayer;
+  scores: SupabaseScore[];
+}
+
+interface SupabaseTeam {
+  id: string;
+  name: string;
+  team_players: SupabaseTeamPlayer[];
+}
+
+interface SupabaseGame {
+  id: string;
+  name: string;
+  date: string;
+  teams: SupabaseTeam[];
+}
+
 export default function Home() {
-  const [games, setGames] = useState<Game[]>([]);
+  const [games, setGames] = useState<GameData[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
@@ -231,7 +242,7 @@ export default function Home() {
                   id,
                   name
                 ),
-                scores!inner (
+                scores (
                   hole_number,
                   score
                 )
@@ -245,7 +256,29 @@ export default function Home() {
           return;
         }
         
-        const gamesWithScores = (gamesData || []) as GameData[];
+        // 타입 캐스팅 수정
+        const gamesWithScores = ((gamesData || []) as unknown as SupabaseGame[]).map(game => ({
+          id: game.id,
+          name: game.name,
+          date: game.date,
+          teams: game.teams.map(team => ({
+            id: team.id,
+            name: team.name,
+            team_players: team.team_players.map(tp => ({
+              id: tp.id,
+              team_name: tp.team_name,
+              player: {
+                id: tp.player.id,
+                name: tp.player.name
+              },
+              scores: tp.scores.map(s => ({
+                hole_number: s.hole_number,
+                score: s.score
+              }))
+            }))
+          }))
+        })) as GameData[];
+
         setGames(gamesWithScores);
         
         if (gamesWithScores.length > 0) {
@@ -273,7 +306,7 @@ export default function Home() {
     return `${completedHoles}/18`;
   };
 
-  const getAllPlayers = (game: Game): LeaderboardPlayer[] => {
+  const getAllPlayers = (game: GameData): LeaderboardPlayer[] => {
     return game.teams.flatMap(team => 
       team.team_players.map(tp => {
         // 점수 배열 생성 (18홀)
