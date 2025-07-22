@@ -127,6 +127,28 @@ interface SupabaseGame {
   teams: SupabaseTeam[];
 }
 
+interface RawGameData {
+  id: string;
+  name: string;
+  date: string;
+  teams: {
+    id: string;
+    name: string;
+    team_players: {
+      id: string;
+      team_name: string;
+      player: {
+        id: string;
+        name: string;
+      };
+      scores: {
+        hole_number: number;
+        score: number;
+      }[];
+    }[];
+  }[];
+}
+
 export default function Home() {
   const [games, setGames] = useState<GameData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -255,9 +277,9 @@ export default function Home() {
           console.error('Error fetching games:', error);
           return;
         }
-        
-        // 타입 캐스팅 수정
-        const gamesWithScores = ((gamesData || []) as unknown as SupabaseGame[]).map(game => ({
+
+        const rawGames = (gamesData as unknown) as RawGameData[];
+        const gamesWithScores = rawGames.map(game => ({
           id: game.id,
           name: game.name,
           date: game.date,
@@ -267,17 +289,11 @@ export default function Home() {
             team_players: team.team_players.map(tp => ({
               id: tp.id,
               team_name: tp.team_name,
-              player: {
-                id: tp.player.id,
-                name: tp.player.name
-              },
-              scores: tp.scores.map(s => ({
-                hole_number: s.hole_number,
-                score: s.score
-              }))
+              player: tp.player,
+              scores: tp.scores
             }))
           }))
-        })) as GameData[];
+        }));
 
         setGames(gamesWithScores);
         
