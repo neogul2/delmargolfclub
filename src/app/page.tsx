@@ -33,22 +33,7 @@ interface GameData {
   id: string;
   name: string;
   date: string;
-  teams: {
-    id: string;
-    name: string;
-    team_players: {
-      id: string;
-      team_name: string;
-      player: {
-        id: string;
-        name: string;
-      };
-      scores: {
-        hole_number: number;
-        score: number;
-      }[];
-    }[];
-  }[];
+  teams: Team[];
 }
 
 interface LeaderboardPlayer {
@@ -142,48 +127,34 @@ interface SupabaseGame {
   teams: SupabaseTeam[];
 }
 
+interface RawScore {
+  hole_number: number;
+  score: number;
+}
+
+interface RawPlayer {
+  id: string;
+  name: string;
+}
+
+interface RawTeamPlayer {
+  id: string;
+  team_name: string;
+  player: RawPlayer;
+  scores: RawScore[];
+}
+
+interface RawTeam {
+  id: string;
+  name: string;
+  team_players: RawTeamPlayer[];
+}
+
 interface RawGameData {
   id: string;
   name: string;
   date: string;
-  teams: {
-    id: string;
-    name: string;
-    team_players: {
-      id: string;
-      team_name: string;
-      player: {
-        id: string;
-        name: string;
-      };
-      scores: {
-        hole_number: number;
-        score: number;
-      }[];
-    }[];
-  }[];
-}
-
-interface SupabaseResponse {
-  id: string;
-  name: string;
-  date: string;
-  teams: {
-    id: string;
-    name: string;
-    team_players: {
-      id: string;
-      team_name: string;
-      player: {
-        id: string;
-        name: string;
-      };
-      scores: {
-        hole_number: number;
-        score: number;
-      }[];
-    }[];
-  }[];
+  teams: RawTeam[];
 }
 
 export default function Home() {
@@ -285,7 +256,7 @@ export default function Home() {
     const fetchGames = async () => {
       setLoading(true);
       try {
-        const { data: gamesData, error } = await supabase
+        const { data: rawData, error } = await supabase
           .from('games')
           .select(`
             id,
@@ -315,8 +286,9 @@ export default function Home() {
           return;
         }
 
-        // Transform the data to match our GameData interface
-        const transformedGames = ((gamesData || []) as unknown as SupabaseResponse[]).map(game => ({
+        // Type assertion and data transformation
+        const rawGames = rawData as unknown as RawGameData[];
+        const transformedGames: GameData[] = rawGames.map(game => ({
           id: game.id,
           name: game.name,
           date: game.date,
@@ -326,8 +298,14 @@ export default function Home() {
             team_players: team.team_players.map(tp => ({
               id: tp.id,
               team_name: tp.team_name,
-              player: tp.player,
-              scores: tp.scores
+              player: {
+                id: tp.player.id,
+                name: tp.player.name
+              },
+              scores: tp.scores.map(s => ({
+                hole_number: s.hole_number,
+                score: s.score
+              }))
             }))
           }))
         }));
