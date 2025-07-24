@@ -124,6 +124,7 @@ export default function Home() {
   const [gamePhotos, setGamePhotos] = useState<GamePhoto[]>([]);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [upDownScores, setUpDownScores] = useState<{[key: string]: number}>({});
+  const [playerAverages, setPlayerAverages] = useState<{[key: string]: number}>({});
 
   // 게임의 사진 가져오기
   const fetchGamePhotos = async (gameId: string) => {
@@ -150,14 +151,13 @@ export default function Home() {
     if (selectedGame) {
       fetchGamePhotos(selectedGame);
       fetchUpDownScores(selectedGame);
+      fetchPlayerAverages(); // 게임 선택 시 평균 계산
     }
   }, [selectedGame]);
 
   // 업다운 점수 가져오기
   const fetchUpDownScores = async (gameId: string) => {
     try {
-      console.log('업다운 점수 가져오기 시작, gameId:', gameId);
-      
       const { data, error } = await supabase
         .from('updown_scores')
         .select('team_name, score')
@@ -168,17 +168,83 @@ export default function Home() {
         return;
       }
 
-      console.log('가져온 업다운 점수 데이터:', data);
-
       const scoresMap: {[key: string]: number} = {};
       data?.forEach(item => {
         scoresMap[item.team_name] = item.score;
       });
 
-      console.log('업다운 점수 맵:', scoresMap);
       setUpDownScores(scoresMap);
     } catch (error) {
       console.error('Error fetching updown scores:', error);
+    }
+  };
+
+  // 전체기록 페이지와 동일한 방식으로 평균 계산
+  const fetchPlayerAverages = async () => {
+    try {
+      const { data: playersData, error: playersError } = await supabase
+        .from('team_players')
+        .select(`
+          player:players (id, name),
+          team:teams (
+            id,
+            name,
+            game:games (
+              id,
+              name,
+              date
+            )
+          ),
+          scores (
+            score,
+            hole_number
+          )
+        `);
+
+      if (playersError) throw playersError;
+
+      const playerStatsMap = new Map<string, { totalScore: number; gamesPlayed: number }>();
+
+      (playersData as any[])?.forEach((tp) => {
+        const player = tp.player;
+        const game = tp.team.game;
+        if (!player || !game) return;
+
+        // 중복된 홀 번호 제거하고 유니크한 점수만 사용
+        const uniqueScores = tp.scores.reduce((acc: { [key: number]: number }, score: any) => {
+          if (score.score !== null && score.score !== undefined) {
+            acc[score.hole_number] = score.score;
+          }
+          return acc;
+        }, {});
+
+        const totalScore = Object.values(uniqueScores).reduce((sum: number, score: any) => sum + (score as number), 0);
+        const completedHoles = Object.keys(uniqueScores).length;
+        
+        // 정확히 18홀이 완료된 게임만 포함
+        if (completedHoles !== 18) {
+          return;
+        }
+
+        if (!playerStatsMap.has(player.name)) {
+          playerStatsMap.set(player.name, { totalScore: 0, gamesPlayed: 0 });
+        }
+
+        const playerStats = playerStatsMap.get(player.name)!;
+        playerStats.totalScore += totalScore;
+        playerStats.gamesPlayed += 1;
+      });
+
+      const averages: {[key: string]: number} = {};
+      playerStatsMap.forEach((stats, playerName) => {
+        if (stats.gamesPlayed > 0) {
+          averages[playerName] = stats.totalScore / stats.gamesPlayed;
+        }
+      });
+
+      setPlayerAverages(averages);
+    } catch (error) {
+      console.error('Error fetching player averages:', error);
     }
   };
 
@@ -322,6 +388,65 @@ export default function Home() {
 
   const getCompletedHoles = (scores: { hole_number: number; score: number }[] = []): string => {
     return scores.length > 0 ? `${scores.length}홀` : '0홀';
+  };
+
+  // 핸디와 평균 대비 증감을 표시하는 함수
+  const getHandicapWithChange = (playerName: string, currentHandicap: number): string => {
+    const average = playerAverages[playerName];
+    if (!average) {
+      return currentHandicap.toString();
+    }
+    
+    const difference = currentHandicap - average;
+    if (difference === 0) {
+      return `${currentHandicap}(0)`;
+    } else if (difference > 0) {
+      return `${currentHandicap}(+${difference})`;
+    } else {
+      return `${currentHandicap}(${difference})`;
+    }
+  };
+
+  // 핸디 증감에 따른 스타일을 반환하는 함수
+  const getHandicapStyle = (playerName: string, currentHandicap: number) => {
+    const average = playerAverages[playerName];
+    if (!average) {
+      return {};
+    }
+    
+    const difference = currentHandicap - average;
+    if (difference === 0) {
+      return {};
+    } else if (difference > 0) {
+      return { color: '#e53e3e', backgroundColor: '#fed7d7' }; // 파스텔톤 빨간색
+    } else {
+      return { color: '#3182ce', backgroundColor: '#bee3f8' }; // 파스텔톤 파란색
+    }
+  };
+
+  // 플레이어의 평균 점수 계산 함수
+  const getPlayerAverage = (playerName: string): string => {
+    try {
+      // 모든 게임에서 해당 플레이어의 점수 수집
+      const playerScores: number[] = [];
+      
+      games.forEach(game => {
+        const player = getAllPlayers(game).find(p => p.name === playerName);
+        if (player && player.scores.length === 18) { // 18홀 완료된 게임만
+          const totalScore = calculateTotal(player.scores);
+          playerScores.push(totalScore);
+        }
+      });
+      
+      if (playerScores.length === 0) {
+        return 'N/A';
+      }
+      
+      const average = playerScores.reduce((sum, score) => sum + score, 0) / playerScores.length;
+      return average.toFixed(1);
+    } catch (error) {
+      return 'N/A';
+    }
   };
 
   const getAllPlayers = (game: GameData): LeaderboardPlayer[] => {
@@ -476,12 +601,13 @@ export default function Home() {
                   <table style={{ fontSize: '0.95rem', width: '100%' }}>
                     <thead>
                       <tr>
-                        <th style={{ padding: '0.6rem', width: '10%' }}>순위</th>
-                        <th style={{ padding: '0.6rem', width: '25%' }}>플레이어</th>
-                        <th style={{ padding: '0.6rem', width: '10%' }}>조</th>
-                        <th style={{ padding: '0.6rem', width: '15%' }}>팀</th>
-                        <th style={{ padding: '0.6rem', width: '20%' }}>Through</th>
-                        <th style={{ padding: '0.6rem', width: '20%' }}>핸디</th>
+                        <th style={{ padding: '0.6rem', width: '8%' }}>순위</th>
+                        <th style={{ padding: '0.6rem', width: '20%' }}>플레이어</th>
+                        <th style={{ padding: '0.6rem', width: '8%' }}>조</th>
+                        <th style={{ padding: '0.6rem', width: '12%' }}>팀</th>
+                        <th style={{ padding: '0.6rem', width: '15%' }}>Through</th>
+                        <th style={{ padding: '0.6rem', width: '15%' }}>핸디(증감)</th>
+                        <th style={{ padding: '0.6rem', width: '12%' }}>평균</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -496,9 +622,8 @@ export default function Home() {
                               <td style={{ padding: '0.6rem' }}>{groupNumber}</td>
                               <td className={`team-${player.team.toLowerCase()}`} style={{ padding: '0.6rem' }}>{player.team}</td>
                               <td style={{ padding: '0.6rem' }}>{getCompletedHoles(player.scores)}</td>
-                              <td className="handicap-score" style={{ padding: '0.6rem' }}>
-                                {calculateTotal(player.scores)}
-                              </td>
+                              <td style={{ padding: '0.6rem', ...getHandicapStyle(player.name, calculateTotal(player.scores)) }}>{getHandicapWithChange(player.name, calculateTotal(player.scores))}</td>
+                              <td style={{ padding: '0.6rem' }}>{playerAverages[player.name] ? playerAverages[player.name].toFixed(1) : 'N/A'}</td>
                             </tr>
                           );
                         })}

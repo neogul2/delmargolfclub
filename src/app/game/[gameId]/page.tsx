@@ -215,10 +215,9 @@ export default function GamePage() {
     if (!game) return;
     
     try {
-      // 기존 업다운 점수 삭제
-      await supabase.from('updown_scores').delete().eq('game_id', game.id);
+      console.log('업다운 점수 저장 시작, gameId:', game.id);
       
-      // 각 조별로 업다운 점수 계산 및 저장
+      // 점수 입력 화면에서 계산된 합계 값을 직접 가져와서 저장
       for (const team of game.teams) {
         const groupNumber = team.name.replace(/[^0-9]/g, '');
         const firstTeamName = groupNumber === '1' ? 'A' : 'C';
@@ -227,39 +226,47 @@ export default function GamePage() {
         const firstTeamPlayers = team.team_players.filter(tp => tp.team_name === firstTeamName);
         const secondTeamPlayers = team.team_players.filter(tp => tp.team_name === secondTeamName);
 
-        // 팀 전체 점수 수집
-        const firstTeamScores = firstTeamPlayers.flatMap(player => {
-          const playerIndex = players.findIndex(p => p.id === player.player.id);
-          return scores[playerIndex]?.filter(score => score !== null && score !== undefined) || [];
+        // 점수 입력 화면과 동일한 방식으로 각 홀별 점수 계산
+        const upDownScores = Array.from({ length: 18 }, (_, holeIndex) => {
+          const firstTeamScores = firstTeamPlayers.map(player => {
+            const playerIndex = players.findIndex(p => p.id === player.player.id);
+            return scores[playerIndex]?.[holeIndex];
+          });
+          const secondTeamScores = secondTeamPlayers.map(player => {
+            const playerIndex = players.findIndex(p => p.id === player.player.id);
+            return scores[playerIndex]?.[holeIndex];
+          });
+          
+          return calculateUpDownScore(firstTeamScores, secondTeamScores);
         });
 
-        const secondTeamScores = secondTeamPlayers.flatMap(player => {
-          const playerIndex = players.findIndex(p => p.id === player.player.id);
-          return scores[playerIndex]?.filter(score => score !== null && score !== undefined) || [];
-        });
-
-        const upDownResult = calculateUpDownScore(firstTeamScores, secondTeamScores);
+        // 점수 입력 화면과 동일한 합계 계산 (화면에 표시되는 값과 동일)
+        const totalFirstScore = upDownScores.reduce((sum, score) => sum + score.aScore, 0);
+        const totalSecondScore = upDownScores.reduce((sum, score) => sum + score.bScore, 0);
         
-        console.log(`팀 ${firstTeamName}: ${upDownResult.aScore}, 팀 ${secondTeamName}: ${upDownResult.bScore}`);
-        console.log(`팀 ${firstTeamName} 점수:`, firstTeamScores);
-        console.log(`팀 ${secondTeamName} 점수:`, secondTeamScores);
+        console.log(`점수 입력 화면 합계 - 팀 ${firstTeamName}: ${totalFirstScore}, 팀 ${secondTeamName}: ${totalSecondScore}`);
+        console.log('각 홀별 업다운 점수:', upDownScores.map((score, i) => `${i+1}H: A=${score.aScore}, B=${score.bScore}`));
         
-        // 업다운 점수 저장
-        const { error: insertError } = await supabase.from('updown_scores').insert([
-          {
-            game_id: game.id,
-            team_name: firstTeamName,
-            score: upDownResult.aScore
-          },
-          {
-            game_id: game.id,
-            team_name: secondTeamName,
-            score: upDownResult.bScore
-          }
-        ]);
+        // upsert 방식으로 업다운 점수 저장
+        const { error: upsertError } = await supabase
+          .from('updown_scores')
+          .upsert([
+            {
+              game_id: game.id,
+              team_name: firstTeamName,
+              score: totalFirstScore
+            },
+            {
+              game_id: game.id,
+              team_name: secondTeamName,
+              score: totalSecondScore
+            }
+          ], {
+            onConflict: 'game_id,team_name'
+          });
 
-        if (insertError) {
-          console.error('업다운 점수 저장 에러:', insertError);
+        if (upsertError) {
+          console.error('업다운 점수 저장 에러:', upsertError);
         } else {
           console.log('업다운 점수 저장 성공');
         }

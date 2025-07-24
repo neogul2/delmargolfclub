@@ -132,3 +132,27 @@ create index if not exists scores_team_id_idx on scores(team_id);
 create index if not exists scores_player_id_idx on scores(player_id);
 create index if not exists scores_team_player_id_idx on scores(team_player_id);
 create index if not exists game_photos_game_id_idx on game_photos(game_id); 
+
+create index if not exists updown_scores_game_id_idx on updown_scores(game_id);
+create index if not exists updown_scores_team_name_idx on updown_scores(team_name);
+
+-- 과거 경기 핸디 테이블
+create table player_handicaps (
+    id uuid primary key default gen_random_uuid(),
+    player_name text not null,
+    game_name text not null,
+    game_date text not null,
+    handicap integer not null,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    unique(player_name, game_name, game_date)
+);
+
+-- RLS 정책
+alter table player_handicaps enable row level security;
+create policy "Enable all" on player_handicaps for all using (true) with check (true);
+
+-- 인덱스
+create index if not exists player_handicaps_player_name_idx on player_handicaps(player_name);
+create index if not exists player_handicaps_game_name_idx on player_handicaps(game_name);
+create index if not exists player_handicaps_game_date_idx on player_handicaps(game_date); 

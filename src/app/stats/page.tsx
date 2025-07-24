@@ -47,6 +47,9 @@ interface PlayerStats {
       date: string;
     };
   };
+  handicaps: {
+    [key: string]: number;
+  };
 }
 
 export default function StatsPage() {
@@ -81,6 +84,20 @@ export default function StatsPage() {
 
       if (playersError) throw playersError;
 
+      // 핸디 데이터 가져오기 (에러가 발생해도 계속 진행)
+      let handicapsData = null;
+      try {
+        const { data, error: handicapsError } = await supabase
+          .from('player_handicaps')
+          .select('player_name, game_name, game_date, handicap');
+        
+        if (!handicapsError) {
+          handicapsData = data;
+        }
+      } catch (handicapsError) {
+        console.log('핸디 데이터를 가져올 수 없습니다:', handicapsError);
+      }
+
       const playerStatsMap = new Map<string, PlayerStats>();
 
       (playersData as unknown as SupabaseResponse[])?.forEach((tp) => {
@@ -88,18 +105,30 @@ export default function StatsPage() {
         const game = tp.team.game;
         if (!player || !game) return;
 
-        const totalScore = tp.scores.reduce((sum: number, s) => sum + (s.score || 0), 0);
-        const completedHoles = tp.scores.filter((s) => s.score !== null).length;
+        // 중복된 홀 번호 제거하고 유니크한 점수만 사용
+        const uniqueScores = tp.scores.reduce((acc, score) => {
+          if (score.score !== null && score.score !== undefined) {
+            acc[score.hole_number] = score.score;
+          }
+          return acc;
+        }, {} as { [key: number]: number });
+
+        const totalScore = Object.values(uniqueScores).reduce((sum, score) => sum + score, 0);
+        const completedHoles = Object.keys(uniqueScores).length;
         
-        // 18홀이 완료된 게임만 포함
-        if (completedHoles !== 18) return;
+        // 정확히 18홀이 완료된 게임만 포함
+        if (completedHoles !== 18) {
+          console.log(`제외된 플레이어: ${player.name}, 완료된 홀: ${completedHoles}/18`);
+          return;
+        }
 
         if (!playerStatsMap.has(player.name)) {
           playerStatsMap.set(player.name, {
             name: player.name,
             average: 0,
             gamesPlayed: 0,
-            gameScores: {}
+            gameScores: {},
+            handicaps: {},
           });
         }
 
@@ -113,6 +142,15 @@ export default function StatsPage() {
         const totalScores = Object.values(playerStats.gameScores).reduce((sum, g) => sum + g.score, 0);
         playerStats.gamesPlayed = Object.keys(playerStats.gameScores).length;
         playerStats.average = totalScores / playerStats.gamesPlayed;
+      });
+
+      // 핸디 데이터 추가
+      handicapsData?.forEach((handicap) => {
+        const playerStats = playerStatsMap.get(handicap.player_name);
+        if (playerStats) {
+          const gameKey = `${handicap.game_name} (${handicap.game_date})`;
+          playerStats.handicaps[gameKey] = handicap.handicap;
+        }
       });
 
       const sortedStats = Array.from(playerStatsMap.values())
@@ -198,9 +236,14 @@ export default function StatsPage() {
                   const gameScore = Object.values(player.gameScores).find(
                     game => `${game.name} (${game.date})` === gameDate
                   );
+                  const handicap = player.handicaps[gameDate];
+                  
                   return (
                     <td key={gameDate} className={gameScore ? '' : 'na'}>
-                      {gameScore ? gameScore.score : 'N/A'}
+                      <div>{gameScore ? gameScore.score : 'N/A'}</div>
+                      {handicap && (
+                        <div style={{ fontSize: '0.8rem', color: '#666' }}>핸디: {handicap}</div>
+                      )}
                     </td>
                   );
                 })}
