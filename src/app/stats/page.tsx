@@ -56,6 +56,14 @@ export default function StatsPage() {
   const [stats, setStats] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [settings, setSettings] = useState({
+    hiddenPlayers: new Set<string>(),
+    hiddenGames: new Set<string>()
+  });
 
   useEffect(() => {
     fetchStats();
@@ -191,6 +199,46 @@ export default function StatsPage() {
     XLSX.writeFile(wb, "델마 골프클럽 전체기록.xlsx");
   };
 
+  // 설정 적용 함수
+  const applySettings = (newSettings: { hiddenPlayers: Set<string>; hiddenGames: Set<string> }) => {
+    setSettings(newSettings);
+    setShowSettings(false);
+  };
+
+  // 비밀번호 확인
+  const handlePasswordSubmit = () => {
+    if (password === '92130') {
+      setShowSettings(true);
+      setShowPasswordModal(false);
+      setPassword('');
+      setPasswordError('');
+    } else {
+      setPasswordError('비밀번호가 올바르지 않습니다.');
+    }
+  };
+
+  // 선수 토글 함수
+  const togglePlayer = (playerName: string) => {
+    const newHiddenPlayers = new Set(settings.hiddenPlayers);
+    if (newHiddenPlayers.has(playerName)) {
+      newHiddenPlayers.delete(playerName);
+    } else {
+      newHiddenPlayers.add(playerName);
+    }
+    setSettings(prev => ({ ...prev, hiddenPlayers: newHiddenPlayers }));
+  };
+
+  // 경기 토글 함수
+  const toggleGame = (gameDate: string) => {
+    const newHiddenGames = new Set(settings.hiddenGames);
+    if (newHiddenGames.has(gameDate)) {
+      newHiddenGames.delete(gameDate);
+    } else {
+      newHiddenGames.add(gameDate);
+    }
+    setSettings(prev => ({ ...prev, hiddenGames: newHiddenGames }));
+  };
+
   if (loading) return <div className="container">로딩 중...</div>;
   if (error) return <div className="container">에러: {error}</div>;
 
@@ -203,14 +251,140 @@ export default function StatsPage() {
   });
   const sortedGameDates = Array.from(allGameDates).sort((a, b) => b.localeCompare(a));
 
+  // 필터링된 데이터 계산
+  const filteredStats = stats.filter(player => !settings.hiddenPlayers.has(player.name));
+  const filteredGameDates = sortedGameDates.filter(gameDate => !settings.hiddenGames.has(gameDate));
+
   return (
     <div className="container page-container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h2>전체기록</h2>
-        <button onClick={downloadExcel} className="btn">
-          Excel 다운로드
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button onClick={() => setShowPasswordModal(true)} className="btn btn-outline">
+            설정
+          </button>
+          <button onClick={downloadExcel} className="btn">
+            Excel 다운로드
+          </button>
+        </div>
       </div>
+
+      {/* 비밀번호 모달 */}
+      {showPasswordModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            minWidth: '300px'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>비밀번호 입력</h3>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="비밀번호를 입력하세요"
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                marginBottom: '1rem',
+                border: '1px solid #ccc',
+                borderRadius: '4px'
+              }}
+              onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+            />
+            {passwordError && (
+              <div style={{ color: 'red', marginBottom: '1rem' }}>{passwordError}</div>
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowPasswordModal(false)} className="btn btn-outline">
+                취소
+              </button>
+              <button onClick={handlePasswordSubmit} className="btn">
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 설정 모달 */}
+      {showSettings && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '8px',
+            minWidth: '400px',
+            maxHeight: '80vh',
+            overflow: 'auto'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '1.5rem' }}>표시 설정</h3>
+            
+            <div style={{ marginBottom: '2rem' }}>
+              <h4 style={{ marginBottom: '1rem' }}>선수 선택</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '0.5rem' }}>
+                {stats.map(player => (
+                  <label key={player.name} style={{ display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={!settings.hiddenPlayers.has(player.name)}
+                      onChange={() => togglePlayer(player.name)}
+                      style={{ marginRight: '0.5rem' }}
+                    />
+                    {player.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+            
+            <div style={{ marginBottom: '2rem' }}>
+              <h4 style={{ marginBottom: '1rem' }}>경기 선택</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.5rem' }}>
+                {sortedGameDates.map(gameDate => (
+                  <label key={gameDate} style={{ display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={!settings.hiddenGames.has(gameDate)}
+                      onChange={() => toggleGame(gameDate)}
+                      style={{ marginRight: '0.5rem' }}
+                    />
+                    {gameDate}
+                  </label>
+                ))}
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowSettings(false)} className="btn btn-outline">
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="stats-table-container">
         <table className="stats-table">
@@ -220,7 +394,7 @@ export default function StatsPage() {
               <th>선수</th>
               <th>평균</th>
               <th>경기수</th>
-              {sortedGameDates.map(gameDate => {
+              {filteredGameDates.map(gameDate => {
                 // 경기명과 날짜를 분리하여 줄바꿈 형식으로 표시
                 const match = gameDate.match(/^(.+?) \((.+)\)$/);
                 const gameName = match ? match[1] : gameDate;
@@ -236,13 +410,13 @@ export default function StatsPage() {
             </tr>
           </thead>
           <tbody>
-            {stats.map((player, index) => (
+            {filteredStats.map((player, index) => (
               <tr key={player.name}>
                 <td>{index + 1}</td>
                 <td>{player.name}</td>
                 <td>{player.average.toFixed(1)}</td>
                 <td>{player.gamesPlayed}</td>
-                {sortedGameDates.map(gameDate => {
+                {filteredGameDates.map(gameDate => {
                   const gameScore = Object.values(player.gameScores).find(
                     game => `${game.name} (${game.date})` === gameDate
                   );
