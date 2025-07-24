@@ -780,7 +780,7 @@ input.score-input:focus {
 .fixed-table th,
 .fixed-table td {
   border: 1px solid #e5e7eb;
-  padding: 4px 8px;
+  padding: 4px 6px;
   text-align: left;
   white-space: nowrap;
   height: 32px;
@@ -793,14 +793,26 @@ input.score-input:focus {
 
 .fixed-table th:first-child,
 .fixed-table td:first-child {
-  min-width: 70px;
-  max-width: 90px;
+  min-width: 50px;
+  max-width: 60px;
+}
+
+.fixed-table th:nth-child(2),
+.fixed-table td:nth-child(2) {
+  min-width: 30px;
+  max-width: 40px;
+}
+
+.fixed-table th:nth-child(3),
+.fixed-table td:nth-child(3) {
+  min-width: 30px;
+  max-width: 40px;
 }
 
 .fixed-table th:last-child,
 .fixed-table td:last-child {
-  min-width: 50px;
-  max-width: 60px;
+  min-width: 40px;
+  max-width: 50px;
   text-align: center;
 }
 
@@ -892,7 +904,7 @@ input.score-input:focus {
 
   .fixed-table th,
   .fixed-table td {
-    padding: 4px 6px;
+    padding: 4px 4px;
     height: 28px;
     line-height: 28px;
     font-size: 13px;
@@ -900,20 +912,32 @@ input.score-input:focus {
 
   .fixed-table th:first-child,
   .fixed-table td:first-child {
-    min-width: 60px;
-    max-width: 70px;
+    min-width: 40px;
+    max-width: 50px;
+  }
+
+  .fixed-table th:nth-child(2),
+  .fixed-table td:nth-child(2) {
+    min-width: 25px;
+    max-width: 30px;
+  }
+
+  .fixed-table th:nth-child(3),
+  .fixed-table td:nth-child(3) {
+    min-width: 25px;
+    max-width: 30px;
   }
 
   .fixed-table th:last-child,
   .fixed-table td:last-child {
-    min-width: 40px;
-    max-width: 50px;
+    min-width: 35px;
+    max-width: 40px;
   }
 
   .scrollable-table th,
   .scrollable-table td {
     min-width: 36px;
-    height: 25px;
+    height: 28px;
     font-size: 13px;
   }
 

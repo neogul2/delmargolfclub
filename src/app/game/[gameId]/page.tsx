@@ -246,10 +246,10 @@ export default function GamePage() {
             <table className="fixed-table">
               <thead>
                 <tr>
-                  <th style={{ minWidth: 'fit-content', padding: '8px 12px' }}>선수</th>
-                  <th style={{ minWidth: 'fit-content', padding: '8px 12px' }}>조</th>
-                  <th style={{ minWidth: 'fit-content', padding: '8px 12px' }}>팀</th>
-                  <th style={{ minWidth: 'fit-content', padding: '8px 12px' }}>핸디캡</th>
+                  <th style={{ padding: '4px 6px' }}>선수</th>
+                  <th style={{ padding: '4px 6px' }}>조</th>
+                  <th style={{ padding: '4px 6px' }}>팀</th>
+                  <th style={{ padding: '4px 6px' }}>핸디캡</th>
                 </tr>
               </thead>
               <tbody>
@@ -272,12 +272,12 @@ export default function GamePage() {
                   
                   return (
                     <tr key={player.id}>
-                      <td style={{ padding: '8px 12px' }}>{player.name}</td>
-                      <td style={{ padding: '8px 12px' }}>{groupNumber}</td>
-                      <td className={`team-${playerTeam?.toLowerCase()}`} style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '4px 6px' }}>{player.name}</td>
+                      <td style={{ padding: '4px 6px' }}>{groupNumber}</td>
+                      <td className={`team-${playerTeam?.toLowerCase()}`} style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>
                         {playerTeam}
                       </td>
-                      <td style={{ padding: '8px 12px' }}>{totalScore}</td>
+                      <td style={{ padding: '4px 6px' }}>{totalScore}</td>
                     </tr>
                   );
                 })}
@@ -291,7 +291,7 @@ export default function GamePage() {
               <thead>
                 <tr>
                   {Array.from({ length: 18 }, (_, i) => (
-                    <th key={i} style={{ minWidth: '60px', padding: '8px 4px' }}>{i + 1}번홀</th>
+                    <th key={i} style={{ minWidth: '45px', padding: '4px 4px' }}>{i + 1}번홀</th>
                   ))}
                 </tr>
               </thead>
@@ -301,7 +301,7 @@ export default function GamePage() {
                     {Array.from({ length: 18 }, (_, holeIndex) => {
                       const score = scores[playerIndex]?.[holeIndex];
                       return (
-                        <td key={holeIndex} className={score !== null && score !== undefined ? 'score-filled' : ''} style={{ padding: '4px' }}>
+                        <td key={holeIndex} className={score !== null && score !== undefined ? 'score-filled' : ''} style={{ padding: '0px' }}>
                           <input
                             type="number"
                             value={score !== null && score !== undefined ? score : ''}
@@ -329,9 +329,9 @@ export default function GamePage() {
               <table className="fixed-table">
                 <thead>
                   <tr>
-                    <th style={{ padding: '8px 12px' }}>조</th>
-                    <th style={{ padding: '8px 12px' }}>팀</th>
-                    <th style={{ padding: '8px 12px' }}>합계</th>
+                    <th style={{ padding: '4px 6px' }}>조</th>
+                    <th style={{ padding: '4px 6px' }}>팀</th>
+                    <th style={{ padding: '4px 6px' }}>합계</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -363,13 +363,13 @@ export default function GamePage() {
                     return (
                       <React.Fragment key={team.id}>
                         <tr>
-                          <td rowSpan={2} style={{ padding: '8px 12px', verticalAlign: 'middle' }}>{groupNumber}</td>
-                          <td className={`team-${firstTeamName.toLowerCase()}`} style={{ padding: '8px 12px' }}>{firstTeamName}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 'bold' }}>{totalFirstScore}</td>
+                          <td rowSpan={2} style={{ padding: '4px 6px', verticalAlign: 'middle' }}>{groupNumber}</td>
+                          <td className={`team-${firstTeamName.toLowerCase()}`} style={{ padding: '4px 6px' }}>{firstTeamName}</td>
+                          <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 'bold' }}>{totalFirstScore}</td>
                         </tr>
                         <tr>
-                          <td className={`team-${secondTeamName.toLowerCase()}`} style={{ padding: '8px 12px' }}>{secondTeamName}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 'bold' }}>{totalSecondScore}</td>
+                          <td className={`team-${secondTeamName.toLowerCase()}`} style={{ padding: '4px 6px' }}>{secondTeamName}</td>
+                          <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 'bold' }}>{totalSecondScore}</td>
                         </tr>
                       </React.Fragment>
                     );
@@ -384,7 +384,7 @@ export default function GamePage() {
                 <thead>
                   <tr>
                     {Array.from({ length: 18 }, (_, i) => (
-                      <th key={i} style={{ padding: '8px 12px', minWidth: '60px' }}>{i + 1}H</th>
+                      <th key={i} style={{ minWidth: '45px', padding: '4px 4px' }}>{i + 1}H</th>
                     ))}
                   </tr>
                 </thead>
@@ -413,13 +413,17 @@ export default function GamePage() {
                     return (
                       <React.Fragment key={team.id}>
                         <tr>
-                          {upDownScores.map((score, index) => (
-                            <td key={index} style={{ padding: '8px 12px', textAlign: 'center' }}>{score.aScore}</td>
+                          {upDownScores.map((score, holeIndex) => (
+                            <td key={holeIndex} style={{ padding: '4px 4px', textAlign: 'center' }}>
+                              {score.aScore}
+                            </td>
                           ))}
                         </tr>
                         <tr>
-                          {upDownScores.map((score, index) => (
-                            <td key={index} style={{ padding: '8px 12px', textAlign: 'center' }}>{score.bScore}</td>
+                          {upDownScores.map((score, holeIndex) => (
+                            <td key={holeIndex} style={{ padding: '4px 4px', textAlign: 'center' }}>
+                              {score.bScore}
+                            </td>
                           ))}
                         </tr>
                       </React.Fragment>
