@@ -358,7 +358,7 @@ export default function Home() {
   return (
     <div className="container page-container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 style={{ margin: 0 }}>⛳️ Delmar Men&apos;s Golf Club</h1>
+        <h1 style={{ margin: 0, fontSize: '1.5rem' }}>⛳️ Delmar Men&apos;s Golf Club</h1>
       </div>
 
       {loading ? (
@@ -399,7 +399,7 @@ export default function Home() {
 
           {/* 현재 게임의 사진 표시 */}
           {selectedGame && gamePhotos.length > 0 && (
-            <div className="game-photos">
+            <div className="game-photos" style={{ marginBottom: '2rem' }}>
               {gamePhotos?.map((photo) => (
                 <div key={photo.id} className="game-photo">
                   <Image
@@ -429,108 +429,114 @@ export default function Home() {
                 </Link>
               </div>
 
+              {/* 개인 점수 표시 (가장 위로) */}
+              <div style={{ marginBottom: '2rem' }}>
+                <h3>개인 점수</h3>
+                <div className="table-container">
+                  <table style={{ fontSize: '0.875rem' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ padding: '0.5rem' }}>순위</th>
+                        <th style={{ padding: '0.5rem' }}>플레이어</th>
+                        <th style={{ padding: '0.5rem' }}>조</th>
+                        <th style={{ padding: '0.5rem' }}>팀</th>
+                        <th style={{ padding: '0.5rem' }}>Through</th>
+                        <th style={{ padding: '0.5rem' }}>핸디</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getAllPlayers(games.find(g => g.id === selectedGame)!)
+                        .sort((a, b) => calculateTotal(a.scores) - calculateTotal(b.scores))
+                        .map((player, index) => {
+                          const groupNumber = player.teamName.replace(/[^0-9]/g, '');
+                          return (
+                            <tr key={player.id}>
+                              <td style={{ padding: '0.5rem' }}>{index + 1}</td>
+                              <td style={{ padding: '0.5rem' }}>{player.name}</td>
+                              <td style={{ padding: '0.5rem' }}>{groupNumber}</td>
+                              <td className={`team-${player.team.toLowerCase()}`} style={{ padding: '0.5rem' }}>{player.team}</td>
+                              <td style={{ padding: '0.5rem' }}>{getCompletedHoles(player.scores)}</td>
+                              <td className="handicap-score" style={{ padding: '0.5rem' }}>
+                                {calculateTotal(player.scores)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               {/* 팀 점수 표시 */}
               <div style={{ marginBottom: '2rem' }}>
                 <h3>팀 점수</h3>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>팀</th>
-                      <th>선수</th>
-                      <th>총점</th>
-                      <th>업다운</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.from(new Set(getAllPlayers(games.find(g => g.id === selectedGame)!).map(p => p.team)))
-                      .sort()
-                      .map(teamName => {
-                        const game = games.find(g => g.id === selectedGame)!;
-                        const team = game.teams.find(t => 
-                          t.team_players.some(tp => tp.team_name === teamName)
-                        );
-                        
-                        // 팀 플레이어와 점수 정보
-                        const teamPlayers = getAllPlayers(game).filter(p => p.team === teamName);
-                        const playerNames = teamPlayers.map(p => p.name).join(', ');
-                        const teamTotal = teamPlayers.reduce((sum, p) => sum + calculateTotal(p.scores), 0);
+                <div className="table-container">
+                  <table style={{ fontSize: '0.875rem' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ padding: '0.5rem' }}>팀</th>
+                        <th style={{ padding: '0.5rem' }}>선수</th>
+                        <th style={{ padding: '0.5rem' }}>총점</th>
+                        <th style={{ padding: '0.5rem' }}>업다운</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from(new Set(getAllPlayers(games.find(g => g.id === selectedGame)!).map(p => p.team)))
+                        .sort()
+                        .map(teamName => {
+                          const game = games.find(g => g.id === selectedGame)!;
+                          const team = game.teams.find(t => 
+                            t.team_players.some(tp => tp.team_name === teamName)
+                          );
+                          
+                          // 팀 플레이어와 점수 정보
+                          const teamPlayers = getAllPlayers(game).filter(p => p.team === teamName);
+                          const playerNames = teamPlayers.map(p => p.name).join(', ');
+                          const teamTotal = teamPlayers.reduce((sum, p) => sum + calculateTotal(p.scores), 0);
 
-                        // 업다운 점수 계산
-                        let upDownTotal = 0;
-                        if (team) {
-                          const groupNumber = team.name.replace(/[^0-9]/g, '');
-                          const oppositeTeamName = teamName === 'A' ? 'B' : 
-                                                 teamName === 'B' ? 'A' :
-                                                 teamName === 'C' ? 'D' : 'C';
+                          // 업다운 점수 계산
+                          let upDownTotal = 0;
+                          if (team) {
+                            const groupNumber = team.name.replace(/[^0-9]/g, '');
+                            const oppositeTeamName = teamName === 'A' ? 'B' : 
+                                                   teamName === 'B' ? 'A' :
+                                                   teamName === 'C' ? 'D' : 'C';
 
-                          // 각 홀별로 점수 계산
-                          for (let hole = 0; hole < 18; hole++) {
-                            const teamScores = team.team_players
-                              .filter(tp => tp.team_name === teamName)
-                              .map(tp => tp.scores.find(s => s.hole_number === hole + 1)?.score)
-                              .filter(score => score !== null && score !== undefined) as number[];
+                            // 각 홀별로 점수 계산
+                            for (let hole = 0; hole < 18; hole++) {
+                              const teamScores = team.team_players
+                                .filter(tp => tp.team_name === teamName)
+                                .map(tp => tp.scores.find(s => s.hole_number === hole + 1)?.score)
+                                .filter(score => score !== null && score !== undefined) as number[];
 
-                            const oppositeTeamScores = team.team_players
-                              .filter(tp => tp.team_name === oppositeTeamName)
-                              .map(tp => tp.scores.find(s => s.hole_number === hole + 1)?.score)
-                              .filter(score => score !== null && score !== undefined) as number[];
+                              const oppositeTeamScores = team.team_players
+                                .filter(tp => tp.team_name === oppositeTeamName)
+                                .map(tp => tp.scores.find(s => s.hole_number === hole + 1)?.score)
+                                .filter(score => score !== null && score !== undefined) as number[];
 
-                            if (teamName === 'A' || teamName === 'C') {
-                              upDownTotal += calculateUpDownScore(teamScores, oppositeTeamScores).aScore;
-                            } else {
-                              upDownTotal += calculateUpDownScore(oppositeTeamScores, teamScores).bScore;
+                              if (teamName === 'A' || teamName === 'C') {
+                                upDownTotal += calculateUpDownScore(teamScores, oppositeTeamScores).aScore;
+                              } else {
+                                upDownTotal += calculateUpDownScore(oppositeTeamScores, teamScores).bScore;
+                              }
                             }
                           }
-                        }
-                        
-                        return (
-                          <tr key={teamName}>
-                            <td className={`team-${teamName.toLowerCase()}`}>{teamName}</td>
-                            <td>{playerNames}</td>
-                            <td>{teamTotal}</td>
-                            <td>{upDownTotal}</td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
+                          
+                          return (
+                            <tr key={teamName}>
+                              <td className={`team-${teamName.toLowerCase()}`} style={{ padding: '0.5rem' }}>{teamName}</td>
+                              <td style={{ padding: '0.5rem' }}>{playerNames}</td>
+                              <td style={{ padding: '0.5rem' }}>{teamTotal}</td>
+                              <td style={{ padding: '0.5rem' }}>{upDownTotal}</td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              {/* 개인 점수 표시 */}
-              <h3>개인 점수</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>순위</th>
-                    <th>플레이어</th>
-                    <th>조</th>
-                    <th>팀</th>
-                    <th>Through</th>
-                    <th>핸디캡</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {getAllPlayers(games.find(g => g.id === selectedGame)!)
-                    .sort((a, b) => calculateTotal(a.scores) - calculateTotal(b.scores))
-                    .map((player, index) => {
-                      const groupNumber = player.teamName.replace(/[^0-9]/g, '');
-                      return (
-                        <tr key={player.id}>
-                          <td>{index + 1}</td>
-                          <td>{player.name}</td>
-                          <td>{groupNumber}</td>
-                          <td className={`team-${player.team.toLowerCase()}`}>{player.team}</td>
-                          <td>{getCompletedHoles(player.scores)}</td>
-                          <td className="handicap-score">
-                            {calculateTotal(player.scores)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-
-              {/* 스코어 현황 요약 */}
+              {/* 스코어 현황 요약 (EBPB) */}
               <div style={{ 
                 marginTop: '2rem',
                 display: 'flex',
@@ -539,6 +545,7 @@ export default function Home() {
                 fontSize: '0.9rem',
                 color: '#4a5568'
               }}>
+                <h3>🦅🐦⛳️⛳️ 이글, 버디, 파, 보기 현황</h3>
                 {(() => {
                   const stats = getScoreStats(getAllPlayers(games.find(g => g.id === selectedGame)!));
                   
@@ -558,54 +565,64 @@ export default function Home() {
                         count: s.albatrossCount, 
                         holes: s.albatross 
                       })),
-                    eagle: stats
+                    eagles: stats
                       .filter(s => s.eagleCount > 0)
                       .map(s => ({ 
                         name: s.name, 
                         count: s.eagleCount, 
                         holes: s.eagles 
                       })),
-                    birdie: stats
+                    birdies: stats
                       .filter(s => s.birdieCount > 0)
                       .map(s => ({ 
                         name: s.name, 
                         count: s.birdieCount, 
                         holes: s.birdies 
                       })),
-                    par: stats
+                    pars: stats
                       .filter(s => s.parCount > 0)
                       .map(s => ({ 
                         name: s.name, 
                         count: s.parCount, 
                         holes: s.pars 
                       })),
-                    bogey: stats
+                    bogeys: stats
                       .filter(s => s.bogeyCount > 0)
                       .map(s => ({ 
                         name: s.name, 
                         count: s.bogeyCount, 
                         holes: s.bogeys 
+                      })),
+                    doubleBogeys: stats
+                      .filter(s => s.doubleBogeyCount > 0)
+                      .map(s => ({ 
+                        name: s.name, 
+                        count: s.doubleBogeyCount, 
+                        holes: s.doubleBogeys 
                       }))
                   };
 
                   return (
-                    <>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {summaries.albatross.length > 0 && (
-                        <div>알바트로스: {formatSummary(summaries.albatross)}</div>
+                        <div><strong>🦅 알바트로스:</strong> {formatSummary(summaries.albatross)}</div>
                       )}
-                      {summaries.eagle.length > 0 && (
-                        <div>이글: {formatSummary(summaries.eagle)}</div>
+                      {summaries.eagles.length > 0 && (
+                        <div><strong>🦅 이글:</strong> {formatSummary(summaries.eagles)}</div>
                       )}
-                      {summaries.birdie.length > 0 && (
-                        <div>버디: {formatSummary(summaries.birdie)}</div>
+                      {summaries.birdies.length > 0 && (
+                        <div><strong>🐦 버디:</strong> {formatSummary(summaries.birdies)}</div>
                       )}
-                      {summaries.par.length > 0 && (
-                        <div>파: {formatSummary(summaries.par)}</div>
+                      {summaries.pars.length > 0 && (
+                        <div><strong>⛳️ 파:</strong> {formatSummary(summaries.pars)}</div>
                       )}
-                      {summaries.bogey.length > 0 && (
-                        <div>보기: {formatSummary(summaries.bogey)}</div>
+                      {summaries.bogeys.length > 0 && (
+                        <div><strong>⛳️ 보기:</strong> {formatSummary(summaries.bogeys)}</div>
                       )}
-                    </>
+                      {summaries.doubleBogeys.length > 0 && (
+                        <div><strong>⛳️ 더블보기:</strong> {formatSummary(summaries.doubleBogeys)}</div>
+                      )}
+                    </div>
                   );
                 })()}
               </div>
