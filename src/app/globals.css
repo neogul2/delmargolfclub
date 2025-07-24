@@ -1160,49 +1160,64 @@ input.score-input:focus {
 @media (max-width: 768px) {
   .stats-table th,
   .stats-table td {
-    padding: 8px;
-    font-size: 0.9rem;
+    padding: 6px; /* 8px에서 6px로 줄임 */
+    font-size: 0.8rem; /* 0.9rem에서 0.8rem으로 줄임 (약 2px 감소) */
+    text-align: center; /* 모든 텍스트 가운데 정렬 */
+  }
+
+  /* 고정 칼럼의 z-index와 배경색 수정 */
+  .stats-table th:nth-child(-n+4),
+  .stats-table td:nth-child(-n+4) {
+    background: white !important; /* 강제로 흰색 배경 적용 */
+    z-index: 10;
   }
 
   .stats-table th:nth-child(1),
   .stats-table td:nth-child(1) {
-    width: 40px;
-    min-width: 40px;
-    max-width: 40px;
+    width: 30px; /* 40px에서 30px로 줄임 */
+    min-width: 30px;
+    max-width: 30px;
+    left: 0;
+    z-index: 40;
   }
 
   .stats-table th:nth-child(2),
   .stats-table td:nth-child(2) {
-    left: 40px;
-    width: 80px;
-    min-width: 80px;
-    max-width: 80px;
+    left: 30px; /* 40px에서 30px로 줄임 */
+    width: 45px; /* 60px에서 45px로 더 줄임 */
+    min-width: 45px;
+    max-width: 45px;
+    z-index: 30;
   }
 
   .stats-table th:nth-child(3),
   .stats-table td:nth-child(3) {
-    left: 120px;
-    width: 60px;
-    min-width: 60px;
-    max-width: 60px;
+    left: 75px; /* 90px에서 75px로 줄임 */
+    width: 45px; /* 60px에서 45px로 줄임 */
+    min-width: 45px;
+    max-width: 45px;
+    z-index: 20;
   }
 
   .stats-table th:nth-child(4),
   .stats-table td:nth-child(4) {
-    left: 180px;
-    width: 60px;
-    min-width: 60px;
-    max-width: 60px;
+    left: 120px; /* 135px에서 120px로 줄임 */
+    width: 45px; /* 60px에서 45px로 줄임 */
+    min-width: 45px;
+    max-width: 45px;
+    z-index: 10;
   }
 
   .stats-table th:nth-child(n+5),
   .stats-table td:nth-child(n+5) {
-    width: 80px;
-    min-width: 80px;
+    width: 60px; /* 70px에서 60px로 줄임 */
+    min-width: 60px;
   }
 
   .game-date {
-    font-size: 0.75rem;
+    font-size: 0.7rem; /* 0.75rem에서 0.7rem으로 줄임 */
+    white-space: pre-line; /* 줄바꿈 허용 */
+    line-height: 1.2; /* 줄간격 조정 */
   }
 }
 

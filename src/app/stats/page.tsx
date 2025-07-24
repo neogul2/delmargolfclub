@@ -220,9 +220,19 @@ export default function StatsPage() {
               <th>선수</th>
               <th>평균</th>
               <th>경기수</th>
-              {sortedGameDates.map(gameDate => (
-                <th key={gameDate}>{gameDate}</th>
-              ))}
+              {sortedGameDates.map(gameDate => {
+                // 경기명과 날짜를 분리하여 줄바꿈 형식으로 표시
+                const match = gameDate.match(/^(.+?) \((.+)\)$/);
+                const gameName = match ? match[1] : gameDate;
+                const gameDateOnly = match ? match[2] : '';
+                
+                return (
+                  <th key={gameDate} className="game-date">
+                    {gameName}
+                    {gameDateOnly && `\n${gameDateOnly}`}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
