@@ -409,6 +409,7 @@ export default function Home() {
                     height={150}
                     className="rounded shadow"
                     style={{ objectFit: 'cover' }}
+                    unoptimized
                   />
                 </div>
               ))}
