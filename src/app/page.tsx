@@ -67,29 +67,43 @@ interface GamePhoto {
   created_at: string;
 }
 
+interface RawGameData {
+  id: string | number;
+  name: string;
+  date: string;
+  teams: RawTeamData[];
+}
+
+interface RawTeamData {
+  id: string | number;
+  name: string;
+  team_players: RawTeamPlayerData[];
+}
+
+interface RawTeamPlayerData {
+  id: string | number;
+  team_name: string;
+  player: Player;
+  scores: RawScoreData[];
+}
+
+interface RawScoreData {
+  hole_number: number;
+  score: number;
+}
+
 // 업다운 게임 점수 계산 함수
 const calculateUpDownScore = (teamAScores: number[], teamBScores: number[]): { aScore: number, bScore: number } => {
-  const validTeamAScores = teamAScores.filter(score => score !== null && score !== undefined);
-  const validTeamBScores = teamBScores.filter(score => score !== null && score !== undefined);
-
-  if (validTeamAScores.length === 0 || validTeamBScores.length === 0) {
-    return { aScore: 0, bScore: 0 };
-  }
-
   let aScore = 0;
   let bScore = 0;
 
-  // 최저점 비교 (낮은 점수가 승리)
-  const minA = Math.min(...validTeamAScores);
-  const minB = Math.min(...validTeamBScores);
-  if (minA < minB) aScore += 1;
-  if (minB < minA) bScore += 1;
-  
-  // 최고점 비교 (낮은 점수가 승리)
-  const maxA = Math.max(...validTeamAScores);
-  const maxB = Math.max(...validTeamBScores);
-  if (maxA < maxB) aScore += 1;
-  if (maxB < maxA) bScore += 1;
+  for (let i = 0; i < Math.min(teamAScores.length, teamBScores.length); i++) {
+    if (teamAScores[i] < teamBScores[i]) {
+      aScore++;
+    } else if (teamBScores[i] < teamAScores[i]) {
+      bScore++;
+    }
+  }
 
   return { aScore, bScore };
 };
@@ -98,24 +112,26 @@ export default function Home() {
   const [games, setGames] = useState<GameData[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [gamePhotos, setGamePhotos] = useState<GamePhoto[]>([]);
   const [uploadLoading, setUploadLoading] = useState(false);
-  const [gamePhotos, setGamePhotos] = useState<{ [key: string]: GamePhoto[] }>({});
 
   // 게임의 사진 가져오기
   const fetchGamePhotos = async (gameId: string) => {
     try {
       const { data, error } = await supabase
-        .from("game_photos")
-        .select("*")
-        .eq("game_id", gameId);
+        .from('game_photos')
+        .select('*')
+        .eq('game_id', gameId)
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setGamePhotos(prev => ({
-        ...prev,
-        [gameId]: data || []
-      }));
-    } catch (err) {
-      console.error('Error fetching game photos:', err);
+      if (error) {
+        console.error('Error fetching photos:', error);
+        return;
+      }
+
+      setGamePhotos(data || []);
+    } catch (error) {
+      console.error('Error fetching photos:', error);
     }
   };
 
@@ -128,24 +144,14 @@ export default function Home() {
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!selectedGame) {
-      alert('경기를 선택해주세요.');
-      return;
-    }
-
-    // Check if there are already 2 photos for this game
-    if (gamePhotos[selectedGame]?.length >= 2) {
-      alert('한 경기당 최대 2장의 사진만 업로드할 수 있습니다.');
-      return;
-    }
+    if (!file || !selectedGame) return;
 
     setUploadLoading(true);
     try {
+      // Check existing photos
       const { data: existingPhotos } = await supabase
         .from('game_photos')
-        .select('id')
+        .select('*')
         .eq('game_id', selectedGame);
 
       if (existingPhotos && existingPhotos.length >= 2) {
@@ -228,21 +234,21 @@ export default function Home() {
           return;
         }
 
-        const transformedGames = rawData.map((game: any) => ({
+        const transformedGames = rawData.map((game: RawGameData) => ({
           id: String(game.id || ''),
           name: String(game.name || ''),
           date: String(game.date || ''),
-          teams: Array.isArray(game.teams) ? game.teams.map((team: any) => ({
+          teams: Array.isArray(game.teams) ? game.teams.map((team: RawTeamData) => ({
             id: String(team.id || ''),
             name: String(team.name || ''),
-            team_players: Array.isArray(team.team_players) ? team.team_players.map((tp: any) => ({
+            team_players: Array.isArray(team.team_players) ? team.team_players.map((tp: RawTeamPlayerData) => ({
               id: String(tp.id || ''),
               team_name: String(tp.team_name || ''),
               player: {
                 id: String(tp.player?.id || ''),
                 name: String(tp.player?.name || '')
               },
-              scores: Array.isArray(tp.scores) ? tp.scores.map((s: any) => ({
+              scores: Array.isArray(tp.scores) ? tp.scores.map((s: RawScoreData) => ({
                 hole_number: Number(s.hole_number || 0),
                 score: Number(s.score || 0)
               })) : []
@@ -251,13 +257,8 @@ export default function Home() {
         }));
 
         setGames(transformedGames);
-        
-        if (transformedGames.length > 0) {
-          setSelectedGame(transformedGames[0].id);
-        }
       } catch (error) {
-        console.error('Error:', error);
-        setGames([]);
+        console.error('Error fetching games:', error);
       } finally {
         setLoading(false);
       }
@@ -271,39 +272,28 @@ export default function Home() {
   }
 
   const calculateTotal = (scores: { hole_number: number; score: number }[] = []): number => {
-    return scores.reduce((sum, s) => sum + s.score, 0);
+    return scores.reduce((total, score) => total + score.score, 0);
   };
 
   const getCompletedHoles = (scores: { hole_number: number; score: number }[] = []): string => {
-    const completedHoles = scores.length;
-    return `${completedHoles}/18`;
+    return scores.length > 0 ? `${scores.length}홀` : '0홀';
   };
 
   const getAllPlayers = (game: GameData): LeaderboardPlayer[] => {
-    return game.teams.flatMap(team => 
+    return game.teams.flatMap(team =>
       team.team_players.map(tp => {
-        // 점수 배열 생성 (18홀)
-        const scoreArray = Array(18).fill(null);
-        // 기존 점수 입력
-        tp.scores.forEach(s => {
-          if (s.hole_number >= 1 && s.hole_number <= 18) {
-            scoreArray[s.hole_number - 1] = s.score;
-          }
-        });
-        // 실제 입력된 점수만 필터링
-        const validScores = scoreArray
-          .map((score, index) => ({
-            hole_number: index + 1,
-            score: score
-          }))
-          .filter(s => s.score !== null && s.score !== undefined);
+        // 각 홀별로 가장 최근의 스코어만 사용
+        const validScores = tp.scores.reduce((acc, curr) => {
+          acc[curr.hole_number] = curr;
+          return acc;
+        }, {} as { [key: number]: Score });
 
         return {
           id: tp.player.id,
           name: tp.player.name,
           teamName: team.name,
           team: tp.team_name || '',
-          scores: validScores
+          scores: Object.values(validScores)
         };
       })
     );
@@ -319,27 +309,27 @@ export default function Home() {
 
       // 스코어별로 홀 분류
       const albatross = Object.entries(latestScores)
-        .filter(([_, score]) => score <= -3)
+        .filter(([, score]) => score <= -3)
         .map(([hole]) => parseInt(hole));
       
       const eagles = Object.entries(latestScores)
-        .filter(([_, score]) => score === -2)
+        .filter(([, score]) => score === -2)
         .map(([hole]) => parseInt(hole));
       
       const birdies = Object.entries(latestScores)
-        .filter(([_, score]) => score === -1)
+        .filter(([, score]) => score === -1)
         .map(([hole]) => parseInt(hole));
       
       const pars = Object.entries(latestScores)
-        .filter(([_, score]) => score === 0)
+        .filter(([, score]) => score === 0)
         .map(([hole]) => parseInt(hole));
       
       const bogeys = Object.entries(latestScores)
-        .filter(([_, score]) => score === 1)
+        .filter(([, score]) => score === 1)
         .map(([hole]) => parseInt(hole));
       
       const doubleBogeys = Object.entries(latestScores)
-        .filter(([_, score]) => score >= 2)
+        .filter(([, score]) => score >= 2)
         .map(([hole]) => parseInt(hole));
 
       return {
@@ -403,9 +393,9 @@ export default function Home() {
           </div>
 
           {/* 현재 게임의 사진 표시 */}
-          {selectedGame && gamePhotos[selectedGame]?.length > 0 && (
+          {selectedGame && gamePhotos.length > 0 && (
             <div className="game-photos">
-              {gamePhotos[selectedGame]?.map((photo) => (
+              {gamePhotos?.map((photo) => (
                 <div key={photo.id} className="game-photo">
                   <Image
                     src={photo.photo_url}

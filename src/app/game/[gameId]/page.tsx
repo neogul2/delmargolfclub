@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import NavBar from '@/components/NavBar';
 import Link from 'next/link';
 import { calculateTotal } from '@/lib/utils';
-import React from 'react'; // Added missing import for React
+import React from 'react';
 
 interface Player {
   id: string;
@@ -38,13 +38,10 @@ interface GameWithFullData {
   teams: Team[];
 }
 
-// 업다운 게임 점수 계산 함수 수정
 const calculateUpDownScore = (teamAScores: number[], teamBScores: number[]): { aScore: number, bScore: number } => {
-  // null이나 undefined 값을 제외한 실제 점수만 사용
   const validTeamAScores = teamAScores.filter(score => score !== null && score !== undefined);
   const validTeamBScores = teamBScores.filter(score => score !== null && score !== undefined);
 
-  // 한 팀이라도 점수가 없으면 0 반환
   if (validTeamAScores.length === 0 || validTeamBScores.length === 0) {
     return { aScore: 0, bScore: 0 };
   }
@@ -52,13 +49,11 @@ const calculateUpDownScore = (teamAScores: number[], teamBScores: number[]): { a
   let aScore = 0;
   let bScore = 0;
 
-  // 최저점 비교 (낮은 점수가 승리)
   const minA = Math.min(...validTeamAScores);
   const minB = Math.min(...validTeamBScores);
   if (minA < minB) aScore += 1;
   if (minB < minA) bScore += 1;
   
-  // 최고점 비교 (낮은 점수가 승리)
   const maxA = Math.max(...validTeamAScores);
   const maxB = Math.max(...validTeamBScores);
   if (maxA < maxB) aScore += 1;
