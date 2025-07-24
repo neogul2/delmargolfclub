@@ -39,26 +39,19 @@ interface GameData {
 interface LeaderboardPlayer {
   id: string;
   name: string;
-  teamName: string;  // 1조, 2조 등
-  team: string;      // A팀, B팀 등
+  teamName: string;
+  team: string;
   scores: Score[];
-}
-
-interface GamePhoto {
-  id: string;
-  game_id: string;
-  photo_url: string;
-  created_at: string;
 }
 
 interface ScoreStat {
   name: string;
-  albatross: number[];  // -3 이하
-  eagles: number[];     // -2
-  birdies: number[];    // -1
-  pars: number[];       // 0
-  bogeys: number[];     // +1
-  doubleBogeys: number[]; // +2 이상
+  albatross: number[];
+  eagles: number[];
+  birdies: number[];
+  pars: number[];
+  bogeys: number[];
+  doubleBogeys: number[];
   albatrossCount: number;
   eagleCount: number;
   birdieCount: number;
@@ -66,55 +59,6 @@ interface ScoreStat {
   bogeyCount: number;
   doubleBogeyCount: number;
 }
-
-interface SupabaseResponse {
-  id: string;
-  name: string;
-  date: string;
-  teams: {
-    id: string;
-    name: string;
-    team_players: {
-      id: string;
-      team_name: string;
-      player: {
-        id: string;
-        name: string;
-      };
-      scores: {
-        hole_number: number;
-        score: number;
-      }[];
-    }[];
-  }[];
-}
-
-// 업다운 게임 점수 계산 함수
-const calculateUpDownScore = (teamAScores: number[], teamBScores: number[]): { aScore: number, bScore: number } => {
-  const validTeamAScores = teamAScores.filter(score => score !== null && score !== undefined);
-  const validTeamBScores = teamBScores.filter(score => score !== null && score !== undefined);
-
-  if (validTeamAScores.length === 0 || validTeamBScores.length === 0) {
-    return { aScore: 0, bScore: 0 };
-  }
-
-  let aScore = 0;
-  let bScore = 0;
-
-  // 최저점 비교 (낮은 점수가 승리)
-  const minA = Math.min(...validTeamAScores);
-  const minB = Math.min(...validTeamBScores);
-  if (minA < minB) aScore += 1;
-  if (minB < minA) bScore += 1;
-  
-  // 최고점 비교 (낮은 점수가 승리)
-  const maxA = Math.max(...validTeamAScores);
-  const maxB = Math.max(...validTeamBScores);
-  if (maxA < maxB) aScore += 1;
-  if (maxB < maxA) bScore += 1;
-
-  return { aScore, bScore };
-};
 
 export default function Home() {
   const [games, setGames] = useState<GameData[]>([]);
@@ -245,22 +189,21 @@ export default function Home() {
           return;
         }
 
-        // Type assertion and data transformation
-        const transformedGames = ((rawData || []) as unknown as SupabaseResponse[]).map(game => ({
+        const transformedGames = (rawData || []).map(game => ({
           id: String(game.id),
           name: String(game.name),
           date: String(game.date),
-          teams: game.teams.map(team => ({
+          teams: (game.teams || []).map(team => ({
             id: String(team.id),
             name: String(team.name),
-            team_players: team.team_players.map(tp => ({
+            team_players: (team.team_players || []).map(tp => ({
               id: String(tp.id),
               team_name: String(tp.team_name),
               player: {
                 id: String(tp.player.id),
                 name: String(tp.player.name)
               },
-              scores: tp.scores.map(s => ({
+              scores: (tp.scores || []).map(s => ({
                 hole_number: Number(s.hole_number),
                 score: Number(s.score)
               }))
