@@ -123,6 +123,7 @@ export default function Home() {
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [gamePhotos, setGamePhotos] = useState<GamePhoto[]>([]);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [upDownScores, setUpDownScores] = useState<{[key: string]: number}>({});
 
   // 게임의 사진 가져오기
   const fetchGamePhotos = async (gameId: string) => {
@@ -148,8 +149,33 @@ export default function Home() {
   useEffect(() => {
     if (selectedGame) {
       fetchGamePhotos(selectedGame);
+      fetchUpDownScores(selectedGame);
     }
   }, [selectedGame]);
+
+  // 업다운 점수 가져오기
+  const fetchUpDownScores = async (gameId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('updown_scores')
+        .select('team_name, score')
+        .eq('game_id', gameId);
+
+      if (error) {
+        console.error('Error fetching updown scores:', error);
+        return;
+      }
+
+      const scoresMap: {[key: string]: number} = {};
+      data?.forEach(item => {
+        scoresMap[item.team_name] = item.score;
+      });
+
+      setUpDownScores(scoresMap);
+    } catch (error) {
+      console.error('Error fetching updown scores:', error);
+    }
+  };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -503,38 +529,14 @@ export default function Home() {
                           const playerNames = teamPlayers.map(p => p.name).join(', ');
                           const teamTotal = teamPlayers.reduce((sum, p) => sum + calculateTotal(p.scores), 0);
 
-                          // 업다운 점수 계산
-                          let upDownTotal = 0;
-                          if (team) {
-                            const groupNumber = team.name.replace(/[^0-9]/g, '');
-                            const oppositeTeamName = teamName === 'A' ? 'B' : 
-                                                   teamName === 'B' ? 'A' :
-                                                   teamName === 'C' ? 'D' : 'C';
-
-                            // 팀 전체 점수 수집
-                            const teamScores = team.team_players
-                              .filter(tp => tp.team_name === teamName)
-                              .flatMap(tp => tp.scores.map(s => s.score))
-                              .filter(score => score !== null && score !== undefined) as number[];
-
-                            const oppositeTeamScores = team.team_players
-                              .filter(tp => tp.team_name === oppositeTeamName)
-                              .flatMap(tp => tp.scores.map(s => s.score))
-                              .filter(score => score !== null && score !== undefined) as number[];
-
-                            if (teamName === 'A' || teamName === 'C') {
-                              upDownTotal = calculateUpDownScore(teamScores, oppositeTeamScores).aScore;
-                            } else {
-                              upDownTotal = calculateUpDownScore(oppositeTeamScores, teamScores).bScore;
-                            }
-                          }
+                          // 업다운 점수는 저장된 값 사용
                           
                           return (
                             <tr key={teamName}>
                               <td className={`team-${teamName.toLowerCase()}`} style={{ padding: '0.6rem' }}>{teamName}</td>
                               <td style={{ padding: '0.6rem' }}>{playerNames}</td>
                               <td style={{ padding: '0.6rem' }}>{teamTotal}</td>
-                              <td style={{ padding: '0.6rem' }}>{upDownTotal}</td>
+                              <td style={{ padding: '0.6rem' }}>{upDownScores[teamName] || 0}</td>
                             </tr>
                           );
                         })}

@@ -75,6 +75,15 @@ create table game_photos (
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+create table updown_scores (
+    id uuid primary key default gen_random_uuid(),
+    game_id uuid references games(id) on delete cascade,
+    team_name text not null,
+    score integer not null,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    unique(game_id, team_name)
+);
+
 -- 게임당 사진 개수 제한을 위한 트리거 함수
 create function check_game_photos_limit()
 returns trigger as $$
@@ -103,6 +112,7 @@ alter table teams enable row level security;
 alter table team_players enable row level security;
 alter table scores enable row level security;
 alter table game_photos enable row level security;
+alter table updown_scores enable row level security;
 
 -- RLS 정책 생성 (모든 사용자에게 모든 권한 부여)
 create policy "Enable all" on games for all using (true) with check (true);
@@ -111,6 +121,7 @@ create policy "Enable all" on teams for all using (true) with check (true);
 create policy "Enable all" on team_players for all using (true) with check (true);
 create policy "Enable all" on scores for all using (true) with check (true);
 create policy "Enable all" on game_photos for all using (true) with check (true);
+create policy "Enable all" on updown_scores for all using (true) with check (true);
 
 -- 인덱스 생성
 create index if not exists teams_game_id_idx on teams(game_id);

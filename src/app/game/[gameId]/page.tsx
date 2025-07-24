@@ -199,11 +199,63 @@ export default function GamePage() {
           });
         }
       }
+      
+      // 업다운 점수 계산 및 저장
+      await saveUpDownScores();
+      
       // fetchGameData() 호출 제거 - 페이지 리로딩 방지
       // 점수 저장 성공 시 작은 알림 표시 (선택사항)
       console.log('점수가 저장되었습니다.');
     } catch (error) {
       setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
+    }
+  };
+
+  const saveUpDownScores = async () => {
+    if (!game) return;
+    
+    try {
+      // 기존 업다운 점수 삭제
+      await supabase.from('updown_scores').delete().eq('game_id', game.id);
+      
+      // 각 조별로 업다운 점수 계산 및 저장
+      for (const team of game.teams) {
+        const groupNumber = team.name.replace(/[^0-9]/g, '');
+        const firstTeamName = groupNumber === '1' ? 'A' : 'C';
+        const secondTeamName = groupNumber === '1' ? 'B' : 'D';
+        
+        const firstTeamPlayers = team.team_players.filter(tp => tp.team_name === firstTeamName);
+        const secondTeamPlayers = team.team_players.filter(tp => tp.team_name === secondTeamName);
+
+        // 팀 전체 점수 수집
+        const firstTeamScores = firstTeamPlayers.flatMap(player => {
+          const playerIndex = players.findIndex(p => p.id === player.player.id);
+          return scores[playerIndex]?.filter(score => score !== null && score !== undefined) || [];
+        });
+
+        const secondTeamScores = secondTeamPlayers.flatMap(player => {
+          const playerIndex = players.findIndex(p => p.id === player.player.id);
+          return scores[playerIndex]?.filter(score => score !== null && score !== undefined) || [];
+        });
+
+        const upDownResult = calculateUpDownScore(firstTeamScores, secondTeamScores);
+        
+        // 업다운 점수 저장
+        await supabase.from('updown_scores').insert([
+          {
+            game_id: game.id,
+            team_name: firstTeamName,
+            score: upDownResult.aScore
+          },
+          {
+            game_id: game.id,
+            team_name: secondTeamName,
+            score: upDownResult.bScore
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error saving updown scores:', error);
     }
   };
 
