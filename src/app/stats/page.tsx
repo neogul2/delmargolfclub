@@ -69,6 +69,29 @@ export default function StatsPage() {
     fetchStats();
   }, []);
 
+  // 필터링된 평균을 localStorage에 저장하여 리더보드에서 사용
+  useEffect(() => {
+    if (stats.length > 0) {
+      const averagesForLeaderboard: {[key: string]: number} = {};
+      const filteredStatsWithAdjustedAverage = stats
+        .filter(player => !settings.hiddenPlayers.has(player.name))
+        .map(player => {
+          const visibleGameScores = Object.values(player.gameScores).filter(game => {
+            const gameKey = `${game.name} (${game.date})`;
+            return !settings.hiddenGames.has(gameKey);
+          });
+          const totalScore = visibleGameScores.reduce((sum, game) => sum + game.score, 0);
+          const adjustedAverage = visibleGameScores.length > 0 ? totalScore / visibleGameScores.length : 0;
+          return { ...player, average: adjustedAverage };
+        });
+      
+      filteredStatsWithAdjustedAverage.forEach(player => {
+        averagesForLeaderboard[player.name] = player.average;
+      });
+      localStorage.setItem('filteredPlayerAverages', JSON.stringify(averagesForLeaderboard));
+    }
+  }, [stats, settings.hiddenPlayers, settings.hiddenGames]);
+
   const fetchStats = async () => {
     try {
       const { data: playersData, error: playersError } = await supabase
@@ -273,29 +296,6 @@ export default function StatsPage() {
       gamesPlayed: visibleGameScores.length
     };
   });
-
-  // 필터링된 평균을 localStorage에 저장하여 리더보드에서 사용
-  useEffect(() => {
-    if (stats.length > 0) {
-      const averagesForLeaderboard: {[key: string]: number} = {};
-      const filteredStatsWithAdjustedAverage = stats
-        .filter(player => !settings.hiddenPlayers.has(player.name))
-        .map(player => {
-          const visibleGameScores = Object.values(player.gameScores).filter(game => {
-            const gameKey = `${game.name} (${game.date})`;
-            return !settings.hiddenGames.has(gameKey);
-          });
-          const totalScore = visibleGameScores.reduce((sum, game) => sum + game.score, 0);
-          const adjustedAverage = visibleGameScores.length > 0 ? totalScore / visibleGameScores.length : 0;
-          return { ...player, average: adjustedAverage };
-        });
-      
-      filteredStatsWithAdjustedAverage.forEach(player => {
-        averagesForLeaderboard[player.name] = player.average;
-      });
-      localStorage.setItem('filteredPlayerAverages', JSON.stringify(averagesForLeaderboard));
-    }
-  }, [stats, settings.hiddenPlayers, settings.hiddenGames]);
 
   return (
     <div className="container page-container">
