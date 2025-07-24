@@ -257,6 +257,11 @@ export default function Home() {
         }));
 
         setGames(transformedGames);
+        
+        // 첫 번째 게임을 자동으로 선택
+        if (transformedGames.length > 0 && !selectedGame) {
+          setSelectedGame(transformedGames[0].id);
+        }
       } catch (error) {
         console.error('Error fetching games:', error);
       } finally {
@@ -265,7 +270,7 @@ export default function Home() {
     };
 
     fetchGames();
-  }, []);
+  }, []); // 빈 의존성 배열로 변경
 
   if (loading) {
     return <div className="container">로딩 중...</div>;
