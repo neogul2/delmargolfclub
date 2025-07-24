@@ -358,7 +358,7 @@ export default function Home() {
   return (
     <div className="container page-container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 style={{ margin: 0, fontSize: '1.5rem' }}>⛳️ Delmar Men&apos;s Golf Club</h1>
+        <h1 style={{ margin: 0, fontSize: '1.8rem' }}>⛳️ Delmar Men&apos;s Golf Club</h1>
       </div>
 
       {loading ? (
@@ -433,15 +433,15 @@ export default function Home() {
               <div style={{ marginBottom: '2rem' }}>
                 <h3>개인 점수</h3>
                 <div className="table-container">
-                  <table style={{ fontSize: '0.875rem' }}>
+                  <table style={{ fontSize: '0.95rem' }}>
                     <thead>
                       <tr>
-                        <th style={{ padding: '0.5rem' }}>순위</th>
-                        <th style={{ padding: '0.5rem' }}>플레이어</th>
-                        <th style={{ padding: '0.5rem' }}>조</th>
-                        <th style={{ padding: '0.5rem' }}>팀</th>
-                        <th style={{ padding: '0.5rem' }}>Through</th>
-                        <th style={{ padding: '0.5rem' }}>핸디</th>
+                        <th style={{ padding: '0.6rem' }}>순위</th>
+                        <th style={{ padding: '0.6rem' }}>플레이어</th>
+                        <th style={{ padding: '0.6rem' }}>조</th>
+                        <th style={{ padding: '0.6rem' }}>팀</th>
+                        <th style={{ padding: '0.6rem' }}>Through</th>
+                        <th style={{ padding: '0.6rem' }}>핸디</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -451,12 +451,12 @@ export default function Home() {
                           const groupNumber = player.teamName.replace(/[^0-9]/g, '');
                           return (
                             <tr key={player.id}>
-                              <td style={{ padding: '0.5rem' }}>{index + 1}</td>
-                              <td style={{ padding: '0.5rem' }}>{player.name}</td>
-                              <td style={{ padding: '0.5rem' }}>{groupNumber}</td>
-                              <td className={`team-${player.team.toLowerCase()}`} style={{ padding: '0.5rem' }}>{player.team}</td>
-                              <td style={{ padding: '0.5rem' }}>{getCompletedHoles(player.scores)}</td>
-                              <td className="handicap-score" style={{ padding: '0.5rem' }}>
+                              <td style={{ padding: '0.6rem' }}>{index + 1}</td>
+                              <td style={{ padding: '0.6rem' }}>{player.name}</td>
+                              <td style={{ padding: '0.6rem' }}>{groupNumber}</td>
+                              <td className={`team-${player.team.toLowerCase()}`} style={{ padding: '0.6rem' }}>{player.team}</td>
+                              <td style={{ padding: '0.6rem' }}>{getCompletedHoles(player.scores)}</td>
+                              <td className="handicap-score" style={{ padding: '0.6rem' }}>
                                 {calculateTotal(player.scores)}
                               </td>
                             </tr>
@@ -471,13 +471,13 @@ export default function Home() {
               <div style={{ marginBottom: '2rem' }}>
                 <h3>팀 점수</h3>
                 <div className="table-container">
-                  <table style={{ fontSize: '0.875rem' }}>
+                  <table style={{ fontSize: '0.95rem' }}>
                     <thead>
                       <tr>
-                        <th style={{ padding: '0.5rem' }}>팀</th>
-                        <th style={{ padding: '0.5rem' }}>선수</th>
-                        <th style={{ padding: '0.5rem' }}>총점</th>
-                        <th style={{ padding: '0.5rem' }}>업다운</th>
+                        <th style={{ padding: '0.6rem' }}>팀</th>
+                        <th style={{ padding: '0.6rem' }}>선수</th>
+                        <th style={{ padding: '0.6rem' }}>총점</th>
+                        <th style={{ padding: '0.6rem' }}>업다운</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -524,10 +524,10 @@ export default function Home() {
                           
                           return (
                             <tr key={teamName}>
-                              <td className={`team-${teamName.toLowerCase()}`} style={{ padding: '0.5rem' }}>{teamName}</td>
-                              <td style={{ padding: '0.5rem' }}>{playerNames}</td>
-                              <td style={{ padding: '0.5rem' }}>{teamTotal}</td>
-                              <td style={{ padding: '0.5rem' }}>{upDownTotal}</td>
+                              <td className={`team-${teamName.toLowerCase()}`} style={{ padding: '0.6rem' }}>{teamName}</td>
+                              <td style={{ padding: '0.6rem' }}>{playerNames}</td>
+                              <td style={{ padding: '0.6rem' }}>{teamTotal}</td>
+                              <td style={{ padding: '0.6rem' }}>{upDownTotal}</td>
                             </tr>
                           );
                         })}
@@ -545,7 +545,7 @@ export default function Home() {
                 fontSize: '0.9rem',
                 color: '#4a5568'
               }}>
-                <h3>🦅🐦⛳️⛳️ 이글, 버디, 파, 보기 현황</h3>
+                <h3>🦅🐦⛳️🏌️ 현황</h3>
                 {(() => {
                   const stats = getScoreStats(getAllPlayers(games.find(g => g.id === selectedGame)!));
                   
@@ -592,35 +592,25 @@ export default function Home() {
                         name: s.name, 
                         count: s.bogeyCount, 
                         holes: s.bogeys 
-                      })),
-                    doubleBogeys: stats
-                      .filter(s => s.doubleBogeyCount > 0)
-                      .map(s => ({ 
-                        name: s.name, 
-                        count: s.doubleBogeyCount, 
-                        holes: s.doubleBogeys 
                       }))
                   };
 
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {summaries.albatross.length > 0 && (
-                        <div><strong>🦅 알바트로스:</strong> {formatSummary(summaries.albatross)}</div>
+                        <div><strong>알바트로스:</strong> {formatSummary(summaries.albatross)}</div>
                       )}
                       {summaries.eagles.length > 0 && (
-                        <div><strong>🦅 이글:</strong> {formatSummary(summaries.eagles)}</div>
+                        <div><strong>이글:</strong> {formatSummary(summaries.eagles)}</div>
                       )}
                       {summaries.birdies.length > 0 && (
-                        <div><strong>🐦 버디:</strong> {formatSummary(summaries.birdies)}</div>
+                        <div><strong>버디:</strong> {formatSummary(summaries.birdies)}</div>
                       )}
                       {summaries.pars.length > 0 && (
-                        <div><strong>⛳️ 파:</strong> {formatSummary(summaries.pars)}</div>
+                        <div><strong>파:</strong> {formatSummary(summaries.pars)}</div>
                       )}
                       {summaries.bogeys.length > 0 && (
-                        <div><strong>⛳️ 보기:</strong> {formatSummary(summaries.bogeys)}</div>
-                      )}
-                      {summaries.doubleBogeys.length > 0 && (
-                        <div><strong>⛳️ 더블보기:</strong> {formatSummary(summaries.doubleBogeys)}</div>
+                        <div><strong>보기:</strong> {formatSummary(summaries.bogeys)}</div>
                       )}
                     </div>
                   );

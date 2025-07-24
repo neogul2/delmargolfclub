@@ -1279,7 +1279,7 @@ input[type="number"] {
   
   /* 제목 크기 조정 */
   h1 {
-    font-size: 1.25rem !important;
+    font-size: 1.6rem !important;
     line-height: 1.3;
   }
   
@@ -1298,13 +1298,13 @@ input[type="number"] {
   }
   
   .table-container table {
-    font-size: 0.8rem !important;
+    font-size: 0.9rem !important;
     min-width: 100%;
   }
   
   .table-container th,
   .table-container td {
-    padding: 0.4rem 0.3rem !important;
+    padding: 0.5rem 0.4rem !important;
     white-space: nowrap;
   }
   
@@ -1344,16 +1344,16 @@ input[type="number"] {
   }
   
   h1 {
-    font-size: 1.1rem !important;
+    font-size: 1.4rem !important;
   }
   
   .table-container table {
-    font-size: 0.75rem !important;
+    font-size: 0.85rem !important;
   }
   
   .table-container th,
   .table-container td {
-    padding: 0.3rem 0.2rem !important;
+    padding: 0.4rem 0.3rem !important;
   }
   
   .btn {
