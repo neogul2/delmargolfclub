@@ -172,7 +172,6 @@ export default function GamePage() {
 
   const autoSaveScore = async (playerIndex: number, playerScores: number[]) => {
     if (!game) return;
-    setLoading(true);
     setError(null);
     try {
       // team_player_id 찾기
@@ -200,11 +199,11 @@ export default function GamePage() {
           });
         }
       }
-      await fetchGameData();
+      // fetchGameData() 호출 제거 - 페이지 리로딩 방지
+      // 점수 저장 성공 시 작은 알림 표시 (선택사항)
+      console.log('점수가 저장되었습니다.');
     } catch (error) {
       setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
     }
   };
 
