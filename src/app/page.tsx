@@ -433,15 +433,15 @@ export default function Home() {
               <div style={{ marginBottom: '2rem' }}>
                 <h3>개인 점수</h3>
                 <div className="table-container">
-                  <table style={{ fontSize: '0.95rem' }}>
+                  <table style={{ fontSize: '0.95rem', width: '100%' }}>
                     <thead>
                       <tr>
-                        <th style={{ padding: '0.6rem' }}>순위</th>
-                        <th style={{ padding: '0.6rem' }}>플레이어</th>
-                        <th style={{ padding: '0.6rem' }}>조</th>
-                        <th style={{ padding: '0.6rem' }}>팀</th>
-                        <th style={{ padding: '0.6rem' }}>Through</th>
-                        <th style={{ padding: '0.6rem' }}>핸디</th>
+                        <th style={{ padding: '0.6rem', width: '10%' }}>순위</th>
+                        <th style={{ padding: '0.6rem', width: '25%' }}>플레이어</th>
+                        <th style={{ padding: '0.6rem', width: '10%' }}>조</th>
+                        <th style={{ padding: '0.6rem', width: '15%' }}>팀</th>
+                        <th style={{ padding: '0.6rem', width: '20%' }}>Through</th>
+                        <th style={{ padding: '0.6rem', width: '20%' }}>핸디</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -471,13 +471,13 @@ export default function Home() {
               <div style={{ marginBottom: '2rem' }}>
                 <h3>팀 점수</h3>
                 <div className="table-container">
-                  <table style={{ fontSize: '0.95rem' }}>
+                  <table style={{ fontSize: '0.95rem', width: '100%' }}>
                     <thead>
                       <tr>
-                        <th style={{ padding: '0.6rem' }}>팀</th>
-                        <th style={{ padding: '0.6rem' }}>선수</th>
-                        <th style={{ padding: '0.6rem' }}>총점</th>
-                        <th style={{ padding: '0.6rem' }}>업다운</th>
+                        <th style={{ padding: '0.6rem', width: '15%' }}>팀</th>
+                        <th style={{ padding: '0.6rem', width: '45%' }}>선수</th>
+                        <th style={{ padding: '0.6rem', width: '20%' }}>총점</th>
+                        <th style={{ padding: '0.6rem', width: '20%' }}>업다운</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -553,8 +553,8 @@ export default function Home() {
                   const formatSummary = (players: { name: string; count: number; holes: number[] }[]): string => {
                     return players
                       .sort((a, b) => b.count - a.count)
-                      .map(p => `${p.name} ${p.count}개 (Hole ${p.holes.join(', ')})`)
-                      .join(', ');
+                      .map(p => `- ${p.name} ${p.count}개 (Hole ${p.holes.join(', ')})`)
+                      .join('\n');
                   };
 
                   const summaries = {
@@ -598,19 +598,44 @@ export default function Home() {
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {summaries.albatross.length > 0 && (
-                        <div><strong>알바트로스:</strong> {formatSummary(summaries.albatross)}</div>
+                        <div>
+                          <strong>알바트로스</strong>
+                          <div style={{ marginLeft: '1rem', whiteSpace: 'pre-line' }}>
+                            {formatSummary(summaries.albatross)}
+                          </div>
+                        </div>
                       )}
                       {summaries.eagles.length > 0 && (
-                        <div><strong>이글:</strong> {formatSummary(summaries.eagles)}</div>
+                        <div>
+                          <strong>이글</strong>
+                          <div style={{ marginLeft: '1rem', whiteSpace: 'pre-line' }}>
+                            {formatSummary(summaries.eagles)}
+                          </div>
+                        </div>
                       )}
                       {summaries.birdies.length > 0 && (
-                        <div><strong>버디:</strong> {formatSummary(summaries.birdies)}</div>
+                        <div>
+                          <strong>버디</strong>
+                          <div style={{ marginLeft: '1rem', whiteSpace: 'pre-line' }}>
+                            {formatSummary(summaries.birdies)}
+                          </div>
+                        </div>
                       )}
                       {summaries.pars.length > 0 && (
-                        <div><strong>파:</strong> {formatSummary(summaries.pars)}</div>
+                        <div>
+                          <strong>파</strong>
+                          <div style={{ marginLeft: '1rem', whiteSpace: 'pre-line' }}>
+                            {formatSummary(summaries.pars)}
+                          </div>
+                        </div>
                       )}
                       {summaries.bogeys.length > 0 && (
-                        <div><strong>보기:</strong> {formatSummary(summaries.bogeys)}</div>
+                        <div>
+                          <strong>보기</strong>
+                          <div style={{ marginLeft: '1rem', whiteSpace: 'pre-line' }}>
+                            {formatSummary(summaries.bogeys)}
+                          </div>
+                        </div>
                       )}
                     </div>
                   );
