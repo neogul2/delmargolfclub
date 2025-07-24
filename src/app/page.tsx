@@ -94,16 +94,25 @@ interface RawScoreData {
 
 // 업다운 게임 점수 계산 함수
 const calculateUpDownScore = (teamAScores: number[], teamBScores: number[]): { aScore: number, bScore: number } => {
+  const validTeamAScores = teamAScores.filter(score => score !== null && score !== undefined);
+  const validTeamBScores = teamBScores.filter(score => score !== null && score !== undefined);
+
+  if (validTeamAScores.length === 0 || validTeamBScores.length === 0) {
+    return { aScore: 0, bScore: 0 };
+  }
+
   let aScore = 0;
   let bScore = 0;
 
-  for (let i = 0; i < Math.min(teamAScores.length, teamBScores.length); i++) {
-    if (teamAScores[i] < teamBScores[i]) {
-      aScore++;
-    } else if (teamBScores[i] < teamAScores[i]) {
-      bScore++;
-    }
-  }
+  const minA = Math.min(...validTeamAScores);
+  const minB = Math.min(...validTeamBScores);
+  if (minA < minB) aScore += 1;
+  if (minB < minA) bScore += 1;
+  
+  const maxA = Math.max(...validTeamAScores);
+  const maxB = Math.max(...validTeamBScores);
+  if (maxA < maxB) aScore += 1;
+  if (maxB < maxA) bScore += 1;
 
   return { aScore, bScore };
 };
@@ -502,23 +511,21 @@ export default function Home() {
                                                    teamName === 'B' ? 'A' :
                                                    teamName === 'C' ? 'D' : 'C';
 
-                            // 각 홀별로 점수 계산
-                            for (let hole = 0; hole < 18; hole++) {
-                              const teamScores = team.team_players
-                                .filter(tp => tp.team_name === teamName)
-                                .map(tp => tp.scores.find(s => s.hole_number === hole + 1)?.score)
-                                .filter(score => score !== null && score !== undefined) as number[];
+                            // 팀 전체 점수 수집
+                            const teamScores = team.team_players
+                              .filter(tp => tp.team_name === teamName)
+                              .flatMap(tp => tp.scores.map(s => s.score))
+                              .filter(score => score !== null && score !== undefined) as number[];
 
-                              const oppositeTeamScores = team.team_players
-                                .filter(tp => tp.team_name === oppositeTeamName)
-                                .map(tp => tp.scores.find(s => s.hole_number === hole + 1)?.score)
-                                .filter(score => score !== null && score !== undefined) as number[];
+                            const oppositeTeamScores = team.team_players
+                              .filter(tp => tp.team_name === oppositeTeamName)
+                              .flatMap(tp => tp.scores.map(s => s.score))
+                              .filter(score => score !== null && score !== undefined) as number[];
 
-                              if (teamName === 'A' || teamName === 'C') {
-                                upDownTotal += calculateUpDownScore(teamScores, oppositeTeamScores).aScore;
-                              } else {
-                                upDownTotal += calculateUpDownScore(oppositeTeamScores, teamScores).bScore;
-                              }
+                            if (teamName === 'A' || teamName === 'C') {
+                              upDownTotal = calculateUpDownScore(teamScores, oppositeTeamScores).aScore;
+                            } else {
+                              upDownTotal = calculateUpDownScore(oppositeTeamScores, teamScores).bScore;
                             }
                           }
                           
