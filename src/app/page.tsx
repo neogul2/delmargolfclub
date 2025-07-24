@@ -156,6 +156,8 @@ export default function Home() {
   // 업다운 점수 가져오기
   const fetchUpDownScores = async (gameId: string) => {
     try {
+      console.log('업다운 점수 가져오기 시작, gameId:', gameId);
+      
       const { data, error } = await supabase
         .from('updown_scores')
         .select('team_name, score')
@@ -166,11 +168,14 @@ export default function Home() {
         return;
       }
 
+      console.log('가져온 업다운 점수 데이터:', data);
+
       const scoresMap: {[key: string]: number} = {};
       data?.forEach(item => {
         scoresMap[item.team_name] = item.score;
       });
 
+      console.log('업다운 점수 맵:', scoresMap);
       setUpDownScores(scoresMap);
     } catch (error) {
       console.error('Error fetching updown scores:', error);

@@ -240,8 +240,12 @@ export default function GamePage() {
 
         const upDownResult = calculateUpDownScore(firstTeamScores, secondTeamScores);
         
+        console.log(`팀 ${firstTeamName}: ${upDownResult.aScore}, 팀 ${secondTeamName}: ${upDownResult.bScore}`);
+        console.log(`팀 ${firstTeamName} 점수:`, firstTeamScores);
+        console.log(`팀 ${secondTeamName} 점수:`, secondTeamScores);
+        
         // 업다운 점수 저장
-        await supabase.from('updown_scores').insert([
+        const { error: insertError } = await supabase.from('updown_scores').insert([
           {
             game_id: game.id,
             team_name: firstTeamName,
@@ -253,6 +257,12 @@ export default function GamePage() {
             score: upDownResult.bScore
           }
         ]);
+
+        if (insertError) {
+          console.error('업다운 점수 저장 에러:', insertError);
+        } else {
+          console.log('업다운 점수 저장 성공');
+        }
       }
     } catch (error) {
       console.error('Error saving updown scores:', error);
