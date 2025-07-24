@@ -182,6 +182,15 @@ export default function Home() {
   // 전체기록 페이지와 동일한 방식으로 평균 계산
   const fetchPlayerAverages = async () => {
     try {
+      // 먼저 localStorage에서 필터링된 평균을 확인
+      const storedAverages = localStorage.getItem('filteredPlayerAverages');
+      if (storedAverages) {
+        const parsedAverages = JSON.parse(storedAverages);
+        setPlayerAverages(parsedAverages);
+        return; // 필터링된 평균이 있으면 그것을 사용
+      }
+
+      // 필터링된 평균이 없으면 기존 방식으로 계산
       const { data: playersData, error: playersError } = await supabase
         .from('team_players')
         .select(`

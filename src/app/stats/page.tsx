@@ -255,6 +255,48 @@ export default function StatsPage() {
   const filteredStats = stats.filter(player => !settings.hiddenPlayers.has(player.name));
   const filteredGameDates = sortedGameDates.filter(gameDate => !settings.hiddenGames.has(gameDate));
 
+  // 필터링된 경기에 대해서만 평균 계산
+  const filteredStatsWithAdjustedAverage = filteredStats.map(player => {
+    // 현재 표시된 경기들만 필터링
+    const visibleGameScores = Object.values(player.gameScores).filter(game => {
+      const gameKey = `${game.name} (${game.date})`;
+      return !settings.hiddenGames.has(gameKey);
+    });
+
+    // 표시된 경기들의 평균 계산
+    const totalScore = visibleGameScores.reduce((sum, game) => sum + game.score, 0);
+    const adjustedAverage = visibleGameScores.length > 0 ? totalScore / visibleGameScores.length : 0;
+
+    return {
+      ...player,
+      average: adjustedAverage,
+      gamesPlayed: visibleGameScores.length
+    };
+  });
+
+  // 필터링된 평균을 localStorage에 저장하여 리더보드에서 사용
+  useEffect(() => {
+    if (stats.length > 0) {
+      const averagesForLeaderboard: {[key: string]: number} = {};
+      const filteredStatsWithAdjustedAverage = stats
+        .filter(player => !settings.hiddenPlayers.has(player.name))
+        .map(player => {
+          const visibleGameScores = Object.values(player.gameScores).filter(game => {
+            const gameKey = `${game.name} (${game.date})`;
+            return !settings.hiddenGames.has(gameKey);
+          });
+          const totalScore = visibleGameScores.reduce((sum, game) => sum + game.score, 0);
+          const adjustedAverage = visibleGameScores.length > 0 ? totalScore / visibleGameScores.length : 0;
+          return { ...player, average: adjustedAverage };
+        });
+      
+      filteredStatsWithAdjustedAverage.forEach(player => {
+        averagesForLeaderboard[player.name] = player.average;
+      });
+      localStorage.setItem('filteredPlayerAverages', JSON.stringify(averagesForLeaderboard));
+    }
+  }, [stats, settings.hiddenPlayers, settings.hiddenGames]);
+
   return (
     <div className="container page-container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -410,7 +452,7 @@ export default function StatsPage() {
             </tr>
           </thead>
           <tbody>
-            {filteredStats.map((player, index) => (
+            {filteredStatsWithAdjustedAverage.map((player, index) => (
               <tr key={player.name}>
                 <td>{index + 1}</td>
                 <td>{player.name}</td>
