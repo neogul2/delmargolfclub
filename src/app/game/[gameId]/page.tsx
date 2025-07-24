@@ -14,11 +14,13 @@ interface Player {
 }
 
 interface Score {
+  hole_number: number;
   score: number;
-  hole: number;
 }
 
 interface TeamPlayer {
+  id: string;
+  team_name: string;
   player: Player;
   scores: Score[];
 }
@@ -29,26 +31,11 @@ interface Team {
   team_players: TeamPlayer[];
 }
 
-interface Game {
+interface GameWithFullData {
   id: string;
   name: string;
   date: string;
   teams: Team[];
-}
-
-interface TeamPlayerWithId {
-  id: string;
-  player: Player;
-  team_name: string;
-  scores: Score[];
-}
-
-interface TeamWithFullData extends Team {
-  team_players: TeamPlayerWithId[];
-}
-
-interface GameWithFullData extends Game {
-  teams: TeamWithFullData[];
 }
 
 // 업다운 게임 점수 계산 함수 수정
@@ -149,7 +136,7 @@ export default function GamePage() {
             team_name: tp.team_name, // 여기서 team_name을 제대로 가져오는지 확인
             scores: tp.scores.map(s => ({
               score: s.score,
-              hole: s.hole_number
+              hole_number: s.hole_number
             }))
           }))
         }))
@@ -166,8 +153,8 @@ export default function GamePage() {
           allPlayers.push(tp.player);
           const playerScores = Array(18).fill(null);
           tp.scores.forEach(s => {
-            if (s.hole >= 1 && s.hole <= 18) {
-              playerScores[s.hole - 1] = s.score;
+            if (s.hole_number >= 1 && s.hole_number <= 18) {
+              playerScores[s.hole_number - 1] = s.score;
             }
           });
           allScores.push(playerScores);
